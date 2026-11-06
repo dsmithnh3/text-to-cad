@@ -2,7 +2,7 @@
 name: refrigeration-equipment
 description: Produce industrial refrigeration equipment geometry with text-to-cad and corresponding editable Vector Studio assets, using dimensional evidence.
 metadata:
-  repository: https://github.com/earthtojake/text-to-cad
+  repository: earthtojake/text-to-cad
 ---
 # Industrial refrigeration equipment
 
