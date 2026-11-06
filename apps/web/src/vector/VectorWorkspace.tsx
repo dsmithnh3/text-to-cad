@@ -1,3 +1,4 @@
+import { projectGLB } from './glbProjection';
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps, type PointerEvent as ReactPointerEvent } from 'react';
 import { Button } from '@cad/ui/primitives/button';
 import { Box, ChevronDown, ChevronUp, Copy, Download, Eye, EyeOff, FolderOpen, Grid3X3, Layers, Lock, LockOpen, Plus, Redo2, RotateCcw, Save, Search, Trash2, Undo2, Upload, ZoomIn, ZoomOut } from 'lucide-react';
@@ -127,6 +128,23 @@ export default function VectorWorkspace() {
     }
     if(imported.length){commit(p=>({...p,assets:[...p.assets,...imported]}));setMessage('Imported '+imported.length+' SVG files');}
   };
+  const importGlb = async (file:File|undefined) => {
+    if(!file)return;
+    setMessage('Projecting GLB mesh…');
+    try {
+      const svg=await projectGLB(file);
+      const asset:Asset={id:id(),name:file.name.replace(/\.glb$/i,'')+' · isometric',category:'CAD projection',svg:sanitizeSvg(svg),provenance:'user-import'};
+      commit(p=>({...p,assets:[...p.assets,asset]}));
+      insertFromImported(asset);
+      setMessage('GLB projected into editable SVG polygons; verify visibility and scale');
+    } catch(e) { setMessage('GLB projection failed: '+String(e)); }
+  };
+  const insertFromImported=(asset:Asset) => {
+    const node:Item={id:id(),assetId:asset.id,name:asset.name,x:300,y:150,w:360,h:240,rotate:0,opacity:1,hidden:false,locked:false};
+    // Asset and instance must enter history together.
+    setProject(p=>({...p,items:[...p.items,node]}));
+    setSelected(node.id);
+  };
   const saveProject = () => download((project.name||'vector-project').replace(/[^a-z0-9_-]/gi,'_')+'.json',new Blob([JSON.stringify(project,null,2)],{type:'application/json'}));
   const loadProject = async (file:File|undefined) => {
     if(!file)return;
@@ -179,6 +197,7 @@ export default function VectorWorkspace() {
         </div>
         {tab==='assets'?<><div className="vs-search"><Search className="size-4 text-muted-foreground"/><input value={filter} onChange={e=>setFilter(e.target.value)} placeholder="Search components" aria-label="Search components"/></div>
           <label className="vs-import"><Upload className="size-4"/> Import SVG assets <input type="file" hidden multiple accept=".svg" onChange={e=>void editFile(e.target.files)}/></label>
+          <label className="vs-import"><Box className="size-4"/> Import CAD GLB as SVG <input type="file" hidden accept=".glb,model/gltf-binary" onChange={e=>void importGlb(e.target.files?.[0])}/></label>
           <div className="vs-catalog">{assets.map(a=><button key={a.id} type="button" onClick={()=>insert(a)} className="vs-asset" title={'Add '+a.name}>
             <span className="vs-asset-icon"><Box className="size-5"/></span><span className="min-w-0"><strong>{a.name}</strong><small>{a.category} · {a.provenance==='source-derived'?'extracted':'local'}</small></span><Plus className="size-3.5 text-muted-foreground"/></button>)}
             {assets.length===0?<p className="vs-muted">No matching assets. Import SVG files to expand the library.</p>:null}</div>
