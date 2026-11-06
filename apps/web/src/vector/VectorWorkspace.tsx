@@ -240,6 +240,7 @@ export default function VectorWorkspace({ locale }: { locale: string }) {
                 const root=new DOMParser().parseFromString(isolatedSvg(sanitizeSvg(asset.svg),i.id),'image/svg+xml').documentElement;
                 return <g key={i.id} transform={'rotate('+i.rotate+' '+(i.x+i.w/2)+' '+(i.y+i.h/2)+')'} opacity={i.opacity} onPointerDown={e=>{e.stopPropagation();onDown(e,i);}}>
                   <svg x={i.x} y={i.y} width={i.w} height={i.h} viewBox={root.getAttribute('viewBox')||'0 0 200 150'} preserveAspectRatio="xMidYMid meet" dangerouslySetInnerHTML={{__html:root.innerHTML}} style={{pointerEvents:'none'}}/>
+                  <rect x={i.x} y={i.y} width={i.w} height={i.h} fill="transparent" pointerEvents={i.locked ? 'none' : 'all'} />
                   {selected===i.id?<rect x={i.x} y={i.y} width={i.w} height={i.h} fill="none" stroke="var(--primary)" strokeWidth={2/zoom} strokeDasharray="6 4" pointerEvents="none"/>:null}
                 </g>;
               })}
