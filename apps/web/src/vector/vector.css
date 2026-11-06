@@ -1,0 +1,43 @@
+.vs-root{display:flex;flex-direction:column;height:100%;min-height:0;width:100%;font-size:var(--cad-text-ui,13px);color:var(--foreground);background:var(--background)}
+.vs-header{height:52px;flex:0 0 52px;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:0 14px}
+.vs-header .flex{min-width:0}.vs-header svg{width:15px;height:15px}
+.vs-title{min-width:100px;max-width:240px;background:transparent;border:1px solid transparent;border-radius:5px;padding:5px 7px;font-weight:600;outline:none;color:var(--foreground)}
+.vs-title:focus{border-color:var(--ring);background:var(--background)}
+.vs-subtitle{font-size:10px;letter-spacing:.09em;color:var(--muted-foreground);font-weight:500}
+.vs-main{display:grid;grid-template-columns:252px minmax(0,1fr) 268px;min-height:0;flex:1}
+.vs-left,.vs-right{min-width:0;min-height:0;display:flex;flex-direction:column}
+.vs-switch{display:flex;gap:4px;padding:9px;border-bottom:1px solid var(--sidebar-border)}
+.vs-switch button{flex:1}
+.vs-search{display:flex;align-items:center;gap:7px;border:1px solid var(--border);border-radius:6px;margin:12px;padding:6px 8px;background:var(--background)}
+.vs-search input{border:0;outline:none;background:transparent;width:100%;font:inherit;min-width:0;color:var(--foreground)}
+.vs-import{margin:0 12px 10px;padding:8px;display:flex;align-items:center;justify-content:center;gap:8px;border:1px dashed var(--border);border-radius:6px;color:var(--muted-foreground);cursor:pointer;font-size:12px}
+.vs-import:hover{background:var(--sidebar-accent)}
+.vs-catalog{overflow:auto;flex:1;padding:0 8px 14px}
+.vs-asset{display:flex;width:100%;align-items:center;gap:10px;text-align:left;color:var(--sidebar-foreground);padding:8px;border-radius:6px;cursor:pointer}
+.vs-asset:hover,.vs-layer:hover{background:var(--sidebar-accent)}
+.vs-asset-icon{height:34px;width:40px;display:flex;align-items:center;justify-content:center;border-radius:5px;border:1px solid var(--sidebar-border);background:var(--background)}
+.vs-asset strong{font-size:12px;font-weight:550;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vs-asset small{display:block;font-size:10px;color:var(--muted-foreground);margin-top:2px}
+.vs-layer{display:flex;align-items:center;gap:6px;border-radius:6px;padding:4px 4px 4px 10px;cursor:pointer}
+.vs-selected{background:var(--sidebar-accent)}
+.vs-layer svg{width:13px;height:13px}
+.vs-center{display:flex;flex-direction:column;min-height:0;min-width:0}
+.vs-toolbar{height:45px;flex:0 0 45px;padding:0 12px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.vs-muted{font-size:11px;line-height:1.55;color:var(--muted-foreground)}
+.vs-tiny-check{font-size:11px;display:flex;align-items:center;gap:5px;color:var(--muted-foreground)}
+.vs-zoom{font-size:11px;min-width:38px;text-align:center;color:var(--muted-foreground)}
+.vs-canvas-wrap{flex:1;min-height:0;min-width:0;position:relative;overflow:hidden;background:var(--surface-sunken,var(--background-1))}
+.vs-canvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
+.vs-status{height:25px;flex:0 0 25px;display:flex;align-items:center;gap:8px;padding:0 10px;color:var(--muted-foreground);font-size:10px}
+.vs-inspector-title{height:45px;flex:0 0 45px;display:flex;align-items:center;gap:8px;font-weight:600;padding:0 14px;border-bottom:1px solid var(--sidebar-border)}
+.vs-properties{padding:14px;display:grid;gap:12px}
+.vs-properties label{display:flex;flex-direction:column;gap:5px;color:var(--muted-foreground);font-size:11px}
+.vs-properties input{background:var(--background);border:1px solid var(--input);border-radius:5px;color:var(--foreground);padding:7px 8px;min-width:0;max-width:100%;outline:none}
+.vs-properties input:focus{border-color:var(--ring)}
+.vs-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.vs-properties-actions{display:flex;gap:6px}.vs-properties-actions button{flex:1}
+.vs-file-button{display:inline-flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;padding:6px 8px;color:var(--foreground);border-radius:5px}
+.vs-file-button:hover{background:var(--accent)}
+.vs-file-button svg{width:14px;height:14px}
+@media(max-width:1040px){.vs-main{grid-template-columns:210px minmax(0,1fr) 220px}.vs-header{padding:0 8px}.vs-subtitle{display:none}}
+@media(max-width:720px){.vs-main{grid-template-columns:150px minmax(0,1fr)}.vs-right{display:none}.vs-header{height:auto;min-height:52px;flex-wrap:wrap;padding:8px}.vs-header button{font-size:11px}.vs-main .vs-asset-icon{display:none}}
