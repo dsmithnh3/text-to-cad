@@ -77,6 +77,10 @@
       "types": "./dist/cad-viewer/catalog.d.ts",
       "import": "./dist/cad-viewer/catalog.js"
     },
+    "./vector": {
+      "types": "./dist/vector/index.d.ts",
+      "import": "./dist/vector/index.js"
+    },
     "./links": {
       "types": "./dist/file-viewer/navigation/links.d.ts",
       "import": "./dist/file-viewer/navigation/links.js"

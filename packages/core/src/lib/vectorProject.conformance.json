@@ -1,0 +1,235 @@
+{
+  "comment": "Language-neutral Vector Studio project contract. TypeScript (@cad/core/lib/vectorProject) and Python (Task 6 parse_vector_project) must accept and reject the same cases. Budgets match M0 exactly; fixtures are the authority.",
+  "schemaId": "cad-vector-studio/v1",
+  "budgets": {
+    "MAX_PROJECT_BYTES": 8000000,
+    "MAX_ASSET_COUNT": 500,
+    "MAX_ITEM_COUNT": 2000,
+    "MAX_AGGREGATE_SVG_BYTES": 6000000,
+    "MAX_DIMENSION": 100000
+  },
+  "tinySvg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><rect width=\"1\" height=\"1\"/></svg>",
+  "validProjects": [
+    {
+      "id": "minimal",
+      "why": "smallest valid project with one asset and one item",
+      "project": {
+        "schema": "cad-vector-studio/v1",
+        "name": "fixture",
+        "width": 1200,
+        "height": 760,
+        "assets": [
+          {
+            "id": "a1",
+            "name": "A",
+            "category": "Test",
+            "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><rect width=\"1\" height=\"1\"/></svg>",
+            "provenance": "user-import"
+          }
+        ],
+        "items": [
+          {
+            "id": "i1",
+            "assetId": "a1",
+            "name": "A",
+            "x": 0,
+            "y": 0,
+            "w": 10,
+            "h": 10,
+            "rotate": 0,
+            "opacity": 1,
+            "hidden": false,
+            "locked": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "source-derived-asset",
+      "why": "provenance source-derived is accepted",
+      "project": {
+        "schema": "cad-vector-studio/v1",
+        "name": "derived",
+        "width": 100,
+        "height": 100,
+        "assets": [
+          {
+            "id": "a1",
+            "name": "Projected",
+            "category": "CAD",
+            "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"/>",
+            "provenance": "source-derived"
+          }
+        ],
+        "items": []
+      }
+    }
+  ],
+  "invalidProjects": [
+    {
+      "id": "malformed-json",
+      "why": "unparseable JSON is refused before any field walk",
+      "text": "{",
+      "messagePattern": "malformed|json"
+    },
+    {
+      "id": "unsupported-schema",
+      "why": "only cad-vector-studio/v1 is admitted",
+      "project": {
+        "schema": "other",
+        "name": "x",
+        "width": 1,
+        "height": 1,
+        "assets": [],
+        "items": []
+      },
+      "messagePattern": "schema"
+    },
+    {
+      "id": "non-object-root",
+      "why": "a JSON null root is not a project",
+      "text": "null",
+      "messagePattern": "object"
+    },
+    {
+      "id": "bad-provenance",
+      "why": "unknown asset provenance is refused",
+      "project": {
+        "schema": "cad-vector-studio/v1",
+        "name": "x",
+        "width": 1,
+        "height": 1,
+        "assets": [
+          {
+            "id": "a1",
+            "name": "A",
+            "category": "Test",
+            "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"/>",
+            "provenance": "remote"
+          }
+        ],
+        "items": []
+      },
+      "messagePattern": "provenance"
+    },
+    {
+      "id": "non-finite-x",
+      "why": "NaN transforms are refused",
+      "project": {
+        "schema": "cad-vector-studio/v1",
+        "name": "x",
+        "width": 10,
+        "height": 10,
+        "assets": [
+          {
+            "id": "a1",
+            "name": "A",
+            "category": "Test",
+            "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"/>",
+            "provenance": "user-import"
+          }
+        ],
+        "items": [
+          {
+            "id": "i1",
+            "assetId": "a1",
+            "name": "A",
+            "x": null,
+            "y": 0,
+            "w": 10,
+            "h": 10,
+            "rotate": 0,
+            "opacity": 1,
+            "hidden": false,
+            "locked": false
+          }
+        ]
+      },
+      "messagePattern": "non-finite|finite|item\\.x"
+    },
+    {
+      "id": "zero-width-item",
+      "why": "item w must be positive",
+      "project": {
+        "schema": "cad-vector-studio/v1",
+        "name": "x",
+        "width": 10,
+        "height": 10,
+        "assets": [
+          {
+            "id": "a1",
+            "name": "A",
+            "category": "Test",
+            "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"/>",
+            "provenance": "user-import"
+          }
+        ],
+        "items": [
+          {
+            "id": "i1",
+            "assetId": "a1",
+            "name": "A",
+            "x": 0,
+            "y": 0,
+            "w": 0,
+            "h": 10,
+            "rotate": 0,
+            "opacity": 1,
+            "hidden": false,
+            "locked": false
+          }
+        ]
+      },
+      "messagePattern": "invalid|item\\.w|size"
+    },
+    {
+      "id": "oversize-canvas",
+      "why": "project width past MAX_DIMENSION is refused",
+      "project": {
+        "schema": "cad-vector-studio/v1",
+        "name": "x",
+        "width": 100001,
+        "height": 10,
+        "assets": [],
+        "items": []
+      },
+      "messagePattern": "invalid|width|dimension"
+    }
+  ],
+  "budgetCases": [
+    {
+      "id": "accept-exact-counts-and-dimensions",
+      "why": "exact MAX_ASSET_COUNT, MAX_ITEM_COUNT and MAX_DIMENSION are accepted",
+      "expect": "accept",
+      "build": "exact_counts_and_dimensions"
+    },
+    {
+      "id": "reject-over-project-bytes",
+      "why": "UTF-8 project text one byte past MAX_PROJECT_BYTES is refused",
+      "expect": "reject",
+      "build": "over_project_bytes",
+      "messagePattern": "MAX_PROJECT_BYTES|project bytes|too large"
+    },
+    {
+      "id": "reject-one-past-asset-count",
+      "why": "MAX_ASSET_COUNT + 1 is refused",
+      "expect": "reject",
+      "build": "one_past_asset_count",
+      "messagePattern": "asset"
+    },
+    {
+      "id": "reject-one-past-item-count",
+      "why": "MAX_ITEM_COUNT + 1 is refused",
+      "expect": "reject",
+      "build": "one_past_item_count",
+      "messagePattern": "item"
+    },
+    {
+      "id": "reject-one-past-aggregate-svg-bytes",
+      "why": "aggregate asset.svg UTF-8 bytes one past MAX_AGGREGATE_SVG_BYTES is refused",
+      "expect": "reject",
+      "build": "one_past_aggregate_svg_bytes",
+      "messagePattern": "aggregate|svg bytes|MAX_AGGREGATE_SVG_BYTES"
+    }
+  ]
+}

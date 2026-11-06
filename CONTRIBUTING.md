@@ -199,6 +199,11 @@ by `cad urdf|sdf|srdf validate`, so they need the server like everything else.
 
 ## Test In Agent Apps
 
+For live Vector Studio / Viewer work and deliberate Codex plugin refreshes, see
+[`docs/codex-development.md`](docs/codex-development.md) (`scripts/dev/vector-studio.sh`,
+`scripts/dev/refresh_codex_plugin.py`). The embedded plugin is a snapshot: there is no
+automatic watcher.
+
 A person installs and updates text-to-cad, in every agent app on the computer, with
 the install command (`curl -fsSL https://texttocad.dev/install.sh | sh`; on Windows
 `irm https://www.texttocad.dev/install.ps1 | iex`): `scripts/install/install.sh` and

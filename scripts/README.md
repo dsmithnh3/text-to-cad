@@ -15,6 +15,8 @@ step; nothing else belongs here (one-off helpers go in `tmp/`).
 | Check the release version and skill pins | `scripts/release/check-version.sh` |
 | Check the shipping contract | `scripts/github-workflows/check-builds.sh` |
 | Install this checkout into an agent app to test it | `scripts/install/dev_install.py <host>` |
+| Launch CAD + Vector Studio Viewer (Vite HMR) | `scripts/dev/vector-studio.sh` |
+| Change-aware Codex plugin refresh | `scripts/dev/refresh_codex_plugin.py` |
 
 ## Index
 
