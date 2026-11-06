@@ -160,7 +160,19 @@ export default function VectorWorkspace({ locale }: { locale: string }) {
     setProject(p=>({...p,items:[...p.items,node]}));
     setSelected(node.id);
   };
-  const saveProject = () => download((project.name||'vector-project').replace(/[^a-z0-9_-]/gi,'_')+'.json',new Blob([JSON.stringify(project,null,2)],{type:'application/json'}));
+  const saveProject = () => {
+    // Self-contained JSON: include only catalog assets actually used, not all 713 installed files.
+    const used = new Set(project.items.map(item => item.assetId));
+    const custom = new Map(project.assets.map(asset => [asset.id, asset]));
+    for (const assetId of used) {
+      if (custom.has(assetId)) continue;
+      const asset = assetMap.get(assetId);
+      if (asset) custom.set(assetId, asset);
+    }
+    const portable = { ...project, assets: [...custom.values()] };
+    download((project.name||'vector-project').replace(/[^a-z0-9_-]/gi,'_')+'.json',
+      new Blob([JSON.stringify(portable,null,2)],{type:'application/json'}));
+  };
   const loadProject = async (file:File|undefined) => {
     if(!file)return;
     try { const next=JSON.parse(await file.text()) as Project;
