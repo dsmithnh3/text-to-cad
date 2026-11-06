@@ -97,10 +97,17 @@ export default function VectorWorkspace({ locale }: { locale: string }) {
   const [future, setFuture] = useState<Project[]>([]);
   const [tab, setTab] = useState<'assets'|'layers'>('assets');
   const [message, setMessage] = useState('');
+  const [sourceOpen, setSourceOpen] = useState(false);
+  const [sourceDraft, setSourceDraft] = useState('');
   const drag = useRef<{id:string;px:number;py:number;ox:number;oy:number}|null>(null);
   const stage = useRef<SVGSVGElement|null>(null);
   const selectedItem = project.items.find(i => i.id === selected);
   const assetMap = useMemo(() => new Map([...builtin, ...bundledAssets, ...project.assets].map(a => [a.id,a])), [project.assets]);
+  useEffect(() => {
+    const item = project.items.find(i => i.id === selected);
+    setSourceDraft(item ? assetMap.get(item.assetId)?.svg || '' : '');
+    setSourceOpen(false);
+  }, [selected]);
   const assets = [...builtin, ...bundledAssets, ...project.assets].filter(a => (a.name + ' ' + a.category).toLowerCase().includes(filter.toLowerCase()));
   useEffect(() => { try { sessionStorage.setItem(ROOT, JSON.stringify(project)); } catch { /* explicit JSON save remains available */ } }, [project]);
   const commit = useCallback((next: Project | ((p:Project) => Project)) => {
@@ -200,6 +207,22 @@ export default function VectorWorkspace({ locale }: { locale: string }) {
     });
     download((project.name||'design').replace(/[^a-z0-9_-]/gi,'_')+'.svg',new Blob([new XMLSerializer().serializeToString(output)],{type:'image/svg+xml'}));
   };
+  const applySource = () => {
+    if (!selectedItem || !sourceDraft) return;
+    try {
+      const sanitized = sanitizeSvg(sourceDraft);
+      const base = assetMap.get(selectedItem.assetId);
+      if (!base) throw Error('Component source missing');
+      const copy:Asset = {...base, id:id(), name:selectedItem.name+' · edited', category:base.category,
+        provenance:'user-import',svg:sanitized};
+      commit(p=>({...p,assets:[...p.assets,copy],
+        items:p.items.map(i=>i.id===selectedItem.id?{...i,assetId:copy.id}:i)}));
+      setSourceDraft(sanitized);
+      setMessage(tr('vector.sourceSaved'));
+    } catch(e) {
+      setMessage(tr('vector.sourceFailed')+': '+String(e));
+    }
+  };
   const doDuplicate=()=>{if(!selectedItem)return;const copy={...selectedItem,id:id(),x:selectedItem.x+24,y:selectedItem.y+24};commit(p=>({...p,items:[...p.items,copy]}));setSelected(copy.id);};
   const doDelete=()=>{if(!selected)return;commit(p=>({...p,items:p.items.filter(i=>i.id!==selected)}));setSelected('');};
   const ButtonSmall=(props:ComponentProps<typeof Button>)=><Button variant="ghost" size="icon-sm" {...props}/>;
@@ -266,6 +289,17 @@ export default function VectorWorkspace({ locale }: { locale: string }) {
         {selectedItem?<div className="vs-properties">
           <label>{tr('vector.componentName')}<input value={selectedItem.name} onChange={e=>change({name:e.target.value})}/></label>
           <div className="vs-fields">{(['x','y','w','h','rotate','opacity'] as const).map(k=><label key={k}>{k==='rotate'?tr('vector.rotation'):k==='opacity'?tr('vector.opacity'):k.toUpperCase()}<input type="number" step={k==='opacity'?.05:1} min={k==='opacity'?0:undefined} max={k==='opacity'?1:undefined} value={selectedItem[k]} onChange={e=>change({[k]:Number(e.target.value)})}/></label>)}</div>
+          <div className="vs-source-editor">
+            <Button size="sm" variant="outline" onClick={()=>setSourceOpen(open=>!open)}>
+              {tr('vector.sourceEditor')} {sourceOpen ? '−' : '+'}
+            </Button>
+            {sourceOpen ? <div className="vs-source-body">
+              <p className="vs-muted">{tr('vector.sourceHint')}</p>
+              <textarea aria-label={tr('vector.sourceEditor')} spellCheck={false} value={sourceDraft}
+                onChange={e=>setSourceDraft(e.target.value)} rows={9} />
+              <Button size="sm" onClick={applySource}>{tr('vector.applySource')}</Button>
+            </div> : null}
+          </div>
           <div className="vs-properties-actions"><Button size="sm" variant="outline" onClick={()=>{const idx=project.items.findIndex(i=>i.id===selected);if(idx<project.items.length-1)commit(p=>({...p,items:[...p.items.slice(0,idx),...p.items.slice(idx+1,idx+2),p.items[idx],...p.items.slice(idx+2)]}));}}><ChevronUp/> {tr('vector.forward')}</Button>
           <Button size="sm" variant="outline" onClick={()=>{const idx=project.items.findIndex(i=>i.id===selected);if(idx>0)commit(p=>{const a=[...p.items];[a[idx-1],a[idx]]=[a[idx],a[idx-1]];return {...p,items:a};});}}><ChevronDown/> {tr('vector.backward')}</Button></div>
           <p className="vs-muted">{tr('vector.vectorNote')}</p>
