@@ -265,8 +265,8 @@ build123d/Open CASCADE, Node test runner, JSDOM, existing shell/Python CI runner
 - Consumes: sanitized SVG boundary from M0 `svgSafety`.
 - Produces: AST consumed by Task 11 controls; v1 commands remain backward compatible.
 
-- [ ] Failing AST/opaque tests.
-- [ ] Implement AST; commit.
+- [x] Failing AST/opaque tests.
+- [x] Implement AST; commit.
 
 ---
 

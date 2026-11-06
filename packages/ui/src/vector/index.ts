@@ -71,4 +71,23 @@ export type {
 } from './vectorCatalog.js';
 
 export { isolateSvg, sanitizeSvg } from './svgSafety.js';
+export {
+  EDITABLE_TAGS,
+  applySvgAstCommand,
+  editAssetSvg,
+  parsePathCommands,
+  parseSvgAst,
+  serializePathCommands,
+  serializeSvgAst,
+} from './svgAst.js';
+export type {
+  SvgAst,
+  SvgAstAttrs,
+  SvgAstCommand,
+  SvgAstNode,
+  SvgEditableNode,
+  SvgEditableTag,
+  SvgOpaqueNode,
+  SvgPathCommand,
+} from './svgAst.js';
 export { projectGLB } from './glbProjection.js';
