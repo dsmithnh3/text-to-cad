@@ -104,12 +104,12 @@ build123d/Open CASCADE, Node test runner, JSDOM, existing shell/Python CI runner
 - Produces: one reducer state `{ project, past, future }` with one transaction per user action;
   GLB asset+instance insertion is a single transaction.
 
-- [ ] **Step 1: Write failing Strict Mode / reducer tests** for insert, drag commit, source
+- [x] **Step 1: Write failing Strict Mode / reducer tests** for insert, drag commit, source
   edit, GLB asset+instance insertion, undo, and redo (no double-push under double-invoke).
-- [ ] **Step 2: Run** focused `vectorState` tests and confirm RED.
-- [ ] **Step 3: Replace** nested `useState` history updates with the reducer; keep drag preview
+- [x] **Step 2: Run** focused `vectorState` tests and confirm RED.
+- [x] **Step 3: Replace** nested `useState` history updates with the reducer; keep drag preview
   ephemeral until pointer-up commits one transaction.
-- [ ] **Step 4: Run** focused web tests GREEN and commit `feat(vector): transactional undo history`
+- [x] **Step 4: Run** focused web tests GREEN and commit `feat(vector): transactional undo history`
 
 ---
 

@@ -2,7 +2,8 @@ import { translator } from '@cad/ui/i18n';
 import { projectGLB } from './glbProjection';
 import { isolateSvg, sanitizeSvg } from './svgSafety';
 import { parseVectorProject, type VectorAsset as Asset, type VectorItem as Item, type VectorProject as Project } from './vectorProject';
-import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps, type PointerEvent as ReactPointerEvent } from 'react';
+import { createVectorState, reduceVectorState } from './vectorState';
+import { useEffect, useMemo, useReducer, useRef, useState, type ComponentProps, type PointerEvent as ReactPointerEvent } from 'react';
 import { Button } from '@cad/ui/primitives/button';
 import { Box, ChevronDown, ChevronUp, Copy, Download, Eye, EyeOff, FolderOpen, Grid3X3, Layers, Lock, LockOpen, Plus, Redo2, RotateCcw, Save, Search, Trash2, Undo2, Upload, ZoomIn, ZoomOut } from 'lucide-react';
 import './vector.css';
@@ -44,20 +45,23 @@ function load(): Project {
 }
 export default function VectorWorkspace({ locale }: { locale: string }) {
   const tr = translator(locale);
-  const [project, setProject] = useState<Project>(load);
+  const [editor, dispatch] = useReducer(reduceVectorState, undefined, () => createVectorState(load()));
+  const editorRef = useRef(editor);
+  editorRef.current = editor;
+  const project = editor.project;
+  const history = editor.past;
+  const future = editor.future;
   const [selected, setSelected] = useState('');
   const [filter, setFilter] = useState('');
   const [showGrid, setShowGrid] = useState(true);
   const [snap, setSnap] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({x:0,y:0});
-  const [history, setHistory] = useState<Project[]>([]);
-  const [future, setFuture] = useState<Project[]>([]);
   const [tab, setTab] = useState<'assets'|'layers'>('assets');
   const [message, setMessage] = useState('');
   const [sourceOpen, setSourceOpen] = useState(false);
   const [sourceDraft, setSourceDraft] = useState('');
-  const drag = useRef<{id:string;px:number;py:number;ox:number;oy:number}|null>(null);
+  const drag = useRef<{id:string;px:number;py:number;ox:number;oy:number;baseline:Project}|null>(null);
   const stage = useRef<SVGSVGElement|null>(null);
   const selectedItem = project.items.find(i => i.id === selected);
   const assetMap = useMemo(() => new Map([...builtin, ...bundledAssets, ...project.assets].map(a => [a.id,a])), [project.assets]);
@@ -68,12 +72,13 @@ export default function VectorWorkspace({ locale }: { locale: string }) {
   }, [selected]);
   const assets = [...builtin, ...bundledAssets, ...project.assets].filter(a => (a.name + ' ' + a.category).toLowerCase().includes(filter.toLowerCase()));
   useEffect(() => { try { sessionStorage.setItem(ROOT, JSON.stringify(project)); } catch { /* explicit JSON save remains available */ } }, [project]);
-  const commit = useCallback((next: Project | ((p:Project) => Project)) => {
-    setProject(p => { setHistory(h => [...h.slice(-49), p]); return typeof next === 'function' ? next(p) : next; });
-    setFuture([]);
-  }, []);
-  const undo = () => { if (!history.length) return; setFuture(f => [...f,project]); setProject(history.at(-1)!); setHistory(h => h.slice(0,-1)); };
-  const redo = () => { if (!future.length) return; setHistory(h => [...h,project]); setProject(future.at(-1)!); setFuture(f => f.slice(0,-1)); };
+  const commit = (next: Project | ((p:Project) => Project), baseline?: Project) => {
+    const current = editorRef.current.project;
+    const projectNext = typeof next === 'function' ? next(current) : next;
+    dispatch({ type: 'commit', project: projectNext, baseline });
+  };
+  const undo = () => { dispatch({ type: 'undo' }); };
+  const redo = () => { dispatch({ type: 'redo' }); };
   const change = (patch:Partial<Item>) => selected && commit(p => ({...p,items:p.items.map(i => i.id===selected?{...i,...patch}:i)}));
   const insert = (a:Asset) => {
     const next:Item = {id:id(),assetId:a.id,name:a.name,x:330+project.items.length*24,y:150+project.items.length*20,w:240,h:160,rotate:0,opacity:1,hidden:false,locked:false};
@@ -90,15 +95,29 @@ export default function VectorWorkspace({ locale }: { locale: string }) {
   };
   const onDown = (event:ReactPointerEvent<SVGElement>, item:Item) => {
     if (item.locked) return; const p=point(event);
-    setSelected(item.id); drag.current={id:item.id,px:p.x,py:p.y,ox:item.x,oy:item.y};
+    setSelected(item.id);
+    drag.current={id:item.id,px:p.x,py:p.y,ox:item.x,oy:item.y,baseline:editorRef.current.project};
     stage.current?.setPointerCapture(event.pointerId);
   };
   const onMove = (event:ReactPointerEvent<SVGSVGElement>) => {
     const d=drag.current;if(!d)return;
     const pt=point(event), grid=(n:number)=>snap?Math.round(n/20)*20:n;
-    setProject(p=>({...p,items:p.items.map(i=>i.id===d.id?{...i,x:grid(d.ox+pt.x-d.px),y:grid(d.oy+pt.y-d.py)}:i)}));
+    dispatch({
+      type: 'preview',
+      project: {
+        ...editorRef.current.project,
+        items: editorRef.current.project.items.map(i => i.id===d.id
+          ? {...i,x:grid(d.ox+pt.x-d.px),y:grid(d.oy+pt.y-d.py)}
+          : i),
+      },
+    });
   };
-  const onUp = () => { if(drag.current){ const d=drag.current; const old={...project,items:project.items.map(i=>i.id===d.id?{...i,x:d.ox,y:d.oy}:i)};setHistory(h=>[...h.slice(-49),old]);setFuture([]);drag.current=null; } };
+  const onUp = () => {
+    if (!drag.current) return;
+    const d = drag.current;
+    drag.current = null;
+    commit(editorRef.current.project, d.baseline);
+  };
   const editFile = async (files: FileList|null) => {
     if(!files)return;const imported:Asset[]=[];
     for(const file of Array.from(files).slice(0,1000)) {
@@ -114,16 +133,12 @@ export default function VectorWorkspace({ locale }: { locale: string }) {
     try {
       const svg=await projectGLB(file);
       const asset:Asset={id:id(),name:file.name.replace(/\.glb$/i,'')+' · isometric',category:'CAD projection',svg:sanitizeSvg(svg),provenance:'user-import'};
-      commit(p=>({...p,assets:[...p.assets,asset]}));
-      insertFromImported(asset);
+      const node:Item={id:id(),assetId:asset.id,name:asset.name,x:300,y:150,w:360,h:240,rotate:0,opacity:1,hidden:false,locked:false};
+      // Asset and instance must enter history together.
+      commit(p=>({...p,assets:[...p.assets,asset],items:[...p.items,node]}));
+      setSelected(node.id);
       setMessage('GLB projected into editable SVG polygons; verify visibility and scale');
     } catch(e) { setMessage('GLB projection failed: '+String(e)); }
-  };
-  const insertFromImported=(asset:Asset) => {
-    const node:Item={id:id(),assetId:asset.id,name:asset.name,x:300,y:150,w:360,h:240,rotate:0,opacity:1,hidden:false,locked:false};
-    // Asset and instance must enter history together.
-    setProject(p=>({...p,items:[...p.items,node]}));
-    setSelected(node.id);
   };
   const saveProject = () => {
     // Self-contained JSON: include only catalog assets actually used, not all 713 installed files.
@@ -148,7 +163,8 @@ export default function VectorWorkspace({ locale }: { locale: string }) {
       };
       // Re-validate after sanitization in case SVG rewrite changes aggregate budgets.
       parseVectorProject(JSON.stringify(cleaned));
-      commit(cleaned);setSelected('');setMessage('Project loaded');
+      dispatch({ type: 'replace', project: cleaned });
+      setSelected('');setMessage('Project loaded');
     } catch(e){setMessage('Cannot open project: '+String(e));}
   };
   const exportSvg = () => {
@@ -191,7 +207,7 @@ export default function VectorWorkspace({ locale }: { locale: string }) {
   const ButtonSmall=(props:ComponentProps<typeof Button>)=><Button variant="ghost" size="icon-sm" {...props}/>;
   return <div className="vs-root bg-background text-foreground">
     <div className="vs-header border-b border-border bg-background">
-      <div className="flex items-center gap-2 min-w-0"><Box className="size-4 text-muted-foreground"/><input className="vs-title" aria-label={tr('vector.projectName')} value={project.name} onChange={e=>setProject(p=>({...p,name:e.target.value}))}/><span className="vs-subtitle">{tr('vector.workspace')}</span></div>
+      <div className="flex items-center gap-2 min-w-0"><Box className="size-4 text-muted-foreground"/><input className="vs-title" aria-label={tr('vector.projectName')} value={project.name} onChange={e=>dispatch({ type: 'preview', project: { ...editorRef.current.project, name: e.target.value } })}/><span className="vs-subtitle">{tr('vector.workspace')}</span></div>
       <div className="flex items-center gap-1">
         <ButtonSmall aria-label={tr('vector.undo')} title={tr('vector.undo')} disabled={!history.length} onClick={undo}><Undo2/></ButtonSmall>
         <ButtonSmall aria-label={tr('vector.redo')} title={tr('vector.redo')} disabled={!future.length} onClick={redo}><Redo2/></ButtonSmall>
