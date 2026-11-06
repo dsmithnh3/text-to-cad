@@ -1,6 +1,8 @@
 ---
 name: cold-room-vector-layout
 description: Compose editable isometric cold-room/facility layouts from structured equipment and room components inside Vector Studio.
+metadata:
+  repository: https://github.com/earthtojake/text-to-cad
 ---
 # Cold-room vector layouts
 
