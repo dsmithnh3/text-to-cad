@@ -8,6 +8,9 @@ export default {
   "vector.applySource": "SVG 변경 적용",
   "vector.sourceSaved": "편집한 SVG 구성 요소를 저장했습니다",
   "vector.sourceFailed": "SVG 변경 사항을 적용할 수 없습니다",
+  "vector.draftQuota": "초안을 저장할 수 없습니다: 저장 공간 할당량을 초과했습니다",
+  "vector.draftUnavailable": "초안을 저장할 수 없습니다: 저장소를 사용할 수 없습니다",
+  "vector.draftInvalid": "초안을 저장할 수 없습니다: 프로젝트가 올바르지 않습니다",
   // Vector Studio workspace, aligned with the existing viewer's locale keys.
   "vector.workspaceModes": "작업공간 모드",
   "vector.workspaceTitle": "벡터 스튜디오",

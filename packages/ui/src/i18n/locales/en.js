@@ -11,6 +11,9 @@ export default {
   "vector.applySource": "Apply SVG changes",
   "vector.sourceSaved": "Edited SVG component saved",
   "vector.sourceFailed": "Cannot apply SVG changes",
+  "vector.draftQuota": "Draft could not be saved: storage quota exceeded",
+  "vector.draftUnavailable": "Draft could not be saved: storage unavailable",
+  "vector.draftInvalid": "Draft could not be saved: project invalid",
   // Vector Studio workspace, aligned with the existing viewer's locale keys.
   "vector.workspaceModes": "Workspace modes",
   "vector.workspaceTitle": "Vector Studio",

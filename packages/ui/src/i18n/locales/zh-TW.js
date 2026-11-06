@@ -9,6 +9,9 @@ export default {
   "vector.applySource": "套用 SVG 變更",
   "vector.sourceSaved": "已儲存編輯後的 SVG 元件",
   "vector.sourceFailed": "無法套用 SVG 變更",
+  "vector.draftQuota": "無法儲存草稿：儲存空間配額已滿",
+  "vector.draftUnavailable": "無法儲存草稿：儲存空間無法使用",
+  "vector.draftInvalid": "無法儲存草稿：專案無效",
   // Vector Studio workspace, aligned with the existing viewer's locale keys.
   "vector.workspaceModes": "工作區模式",
   "vector.workspaceTitle": "向量工作室",

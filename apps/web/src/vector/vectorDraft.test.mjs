@@ -109,7 +109,6 @@ test('storage quota failures are reported without throwing', () => {
   const result = writeVectorDraft(storage, sampleProject());
   assert.equal(result.ok, false);
   assert.equal(result.error, 'quota');
-  assert.match(result.message, /quota/i);
 });
 
 test('blocked writes are reported without throwing', () => {

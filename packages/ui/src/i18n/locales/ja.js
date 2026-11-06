@@ -8,6 +8,9 @@ export default {
   "vector.applySource": "SVG の変更を適用",
   "vector.sourceSaved": "編集した SVG を保存しました",
   "vector.sourceFailed": "SVG の変更を適用できません",
+  "vector.draftQuota": "下書きを保存できませんでした: ストレージ容量が不足しています",
+  "vector.draftUnavailable": "下書きを保存できませんでした: ストレージを利用できません",
+  "vector.draftInvalid": "下書きを保存できませんでした: プロジェクトが無効です",
   // Vector Studio workspace, aligned with the existing viewer's locale keys.
   "vector.workspaceModes": "ワークスペースの切り替え",
   "vector.workspaceTitle": "ベクタースタジオ",

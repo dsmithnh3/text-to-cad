@@ -70,7 +70,11 @@ export default function VectorWorkspace({ locale }: { locale: string }) {
     const next = reduceVectorState(editorRef.current, action);
     dispatch(action);
     const result = persistCommittedDraft(sessionStorage, action, next.project);
-    if (result && !result.ok) setMessage(result.message);
+    if (result && !result.ok) {
+      if (result.error === 'quota') setMessage(tr('vector.draftQuota'));
+      else if (result.error === 'blocked') setMessage(tr('vector.draftUnavailable'));
+      else setMessage(tr('vector.draftInvalid'));
+    }
     return result;
   };
   const commit = (next: Project | ((p:Project) => Project), baseline?: Project) => {

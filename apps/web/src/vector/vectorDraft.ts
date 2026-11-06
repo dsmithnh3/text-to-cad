@@ -14,7 +14,7 @@ export type VectorDraftStorage = Pick<Storage, 'getItem' | 'setItem'>;
 
 export type VectorDraftWriteResult =
   | { ok: true }
-  | { ok: false; error: 'quota' | 'blocked' | 'invalid'; message: string };
+  | { ok: false; error: 'quota' | 'blocked' | 'invalid'; detail?: string };
 
 type DraftEnvelope = {
   version: number;
@@ -69,27 +69,17 @@ export function writeVectorDraft(
   try {
     payload = encodeDraft(parseVectorProject(JSON.stringify(project)));
   } catch (error) {
-    const message = error instanceof VectorProjectError || error instanceof Error
+    const detail = error instanceof VectorProjectError || error instanceof Error
       ? error.message
       : String(error);
-    return { ok: false, error: 'invalid', message };
+    return { ok: false, error: 'invalid', detail };
   }
   try {
     storage.setItem(VECTOR_DRAFT_KEY, payload);
     return { ok: true };
   } catch (error) {
-    if (isQuotaError(error)) {
-      return {
-        ok: false,
-        error: 'quota',
-        message: 'Draft could not be saved: storage quota exceeded',
-      };
-    }
-    return {
-      ok: false,
-      error: 'blocked',
-      message: 'Draft could not be saved: storage unavailable',
-    };
+    if (isQuotaError(error)) return { ok: false, error: 'quota' };
+    return { ok: false, error: 'blocked' };
   }
 }
 

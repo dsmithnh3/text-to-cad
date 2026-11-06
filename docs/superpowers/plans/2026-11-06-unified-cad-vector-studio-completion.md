@@ -141,11 +141,26 @@ build123d/Open CASCADE, Node test runner, JSDOM, existing shell/Python CI runner
 - Produces: reviewable evidence for transform, source edit, save/load, export, CAD↔Vector
   switch, and SVG sanitization in a real browser—without claiming unrun checks.
 
-- [ ] Run `scripts/test/test-js.sh --select web`, relevant global policy tests, and the packaged
+- [x] Run `scripts/test/test-js.sh --select web`, relevant global policy tests, and the packaged
   Viewer/browser smoke with real Chromium; capture pass/fail evidence.
-- [ ] Exercise transform, source edit, save/load, and export in a real browser.
-- [ ] Record remaining limitations (no Vector MCP yet; projection still illustrative).
-- [ ] **Do not push** unless explicitly authorized; local validation continues.
+  - `test-js.sh --select web`: PASS (100 web tests) after localizing draft quota/unavailable
+    messages that `check-ui-strings` refused as English object `message:` literals.
+  - `test-global.sh tests/python/global/test_vector_import_library.py`: PASS (3/3).
+  - `scripts/bundle/bundle.sh --check`: PASS.
+  - `scripts/test/test-viewer-browser.sh` (real Chromium): PASS (format + camera).
+- [x] Exercise transform, source edit, save/load, and export in a real browser.
+  - One-off Chromium pass against Vite on `127.0.0.1:5174` (existing `:5173` left untouched):
+    CAD↔Vector switch, insert, X transform, source edit with script/onload stripped (no XSS),
+    export SVG, save/load JSON, draft restore after reload. Evidence under ignored
+    `tmp/task4-vector-browser/evidence/` (not committed).
+- [x] Record remaining limitations (no Vector MCP yet; projection still illustrative).
+  - No Vector MCP tools / `VectorView` in `apps/mcp` yet (Task 9).
+  - GLB→SVG projection remains illustrative mesh polygons, not CAD-accurate HLR.
+  - No shared `@cad/core` project contract yet (Tasks 5–6); durable UUID/revision store and
+    immutable catalog still ahead (Tasks 7–8).
+  - Structured SVG AST / editor controls still ahead (Tasks 10–11).
+- [x] **Do not push** unless explicitly authorized; local validation continues.
+  - Push remains deferred under standing authorization; branch local-only for Task 4.
 
 ---
 
