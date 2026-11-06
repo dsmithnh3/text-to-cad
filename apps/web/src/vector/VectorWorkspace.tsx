@@ -1,6 +1,7 @@
 import { translator } from '@cad/ui/i18n';
 import { projectGLB } from './glbProjection';
 import { isolateSvg, sanitizeSvg } from './svgSafety';
+import { parseVectorProject, type VectorAsset as Asset, type VectorItem as Item, type VectorProject as Project } from './vectorProject';
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps, type PointerEvent as ReactPointerEvent } from 'react';
 import { Button } from '@cad/ui/primitives/button';
 import { Box, ChevronDown, ChevronUp, Copy, Download, Eye, EyeOff, FolderOpen, Grid3X3, Layers, Lock, LockOpen, Plus, Redo2, RotateCcw, Save, Search, Trash2, Undo2, Upload, ZoomIn, ZoomOut } from 'lucide-react';
@@ -11,9 +12,6 @@ import './vector.css';
  * and never invokes the CAD engine or changes its document. CAD remains an independent mode.
  * Source SVGs imported from assets/ are optional and intentionally not vendored in this fork.
  */
-type Asset = { id: string; name: string; category: string; svg: string; provenance: 'user-import' | 'source-derived' };
-type Item = { id: string; assetId: string; name: string; x: number; y: number; w: number; h: number; rotate: number; opacity: number; hidden: boolean; locked: boolean; };
-type Project = { schema: 'cad-vector-studio/v1'; name: string; items: Item[]; assets: Asset[]; width: number; height: number };
 const NS = 'http://www.w3.org/2000/svg';
 const ROOT = 'cad-vector-studio-project-v1';
 const builtin: Asset[] = [
@@ -40,9 +38,8 @@ function load(): Project {
   try {
     const raw = sessionStorage.getItem(ROOT);
     if (!raw) return empty();
-    const p = JSON.parse(raw);
-    if (p.schema === 'cad-vector-studio/v1' && Array.isArray(p.items) && Array.isArray(p.assets)) return p;
-  } catch { /* no storage on private tabs */ }
+    return parseVectorProject(raw);
+  } catch { /* quota/malformed/private-tab storage */ }
   return empty();
 }
 export default function VectorWorkspace({ locale }: { locale: string }) {
@@ -143,9 +140,14 @@ export default function VectorWorkspace({ locale }: { locale: string }) {
   };
   const loadProject = async (file:File|undefined) => {
     if(!file)return;
-    try { const next=JSON.parse(await file.text()) as Project;
-      if(next.schema!=='cad-vector-studio/v1'||!Array.isArray(next.assets)||!Array.isArray(next.items)) throw Error('Unsupported project');
-      const cleaned:Project={...next,assets:next.assets.map(a=>({...a,svg:sanitizeSvg(a.svg)}))};
+    try {
+      const next = parseVectorProject(await file.text());
+      const cleaned: Project = {
+        ...next,
+        assets: next.assets.map(a => ({ ...a, svg: sanitizeSvg(a.svg) })),
+      };
+      // Re-validate after sanitization in case SVG rewrite changes aggregate budgets.
+      parseVectorProject(JSON.stringify(cleaned));
       commit(cleaned);setSelected('');setMessage('Project loaded');
     } catch(e){setMessage('Cannot open project: '+String(e));}
   };

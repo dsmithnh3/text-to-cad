@@ -69,26 +69,26 @@ build123d/Open CASCADE, Node test runner, JSDOM, existing shell/Python CI runner
 - `MAX_PROJECT_BYTES = 8_000_000`
 - `MAX_ASSET_COUNT = 500`
 - `MAX_ITEM_COUNT = 2_000`
-- `MAX_AGGREGATE_SVG_BYTES = 40_000_000` (UTF-8 byte length of all `asset.svg` strings)
+- `MAX_AGGREGATE_SVG_BYTES = 6_000_000` (UTF-8 byte length of all `asset.svg` strings; kept under `MAX_PROJECT_BYTES` so the aggregate check is reachable)
 - `MAX_DIMENSION = 100_000` (project `width`/`height` and item `w`/`h`)
 - Finite numeric transforms only (`x`, `y`, `w`, `h`, `rotate`, `opacity`; `w`/`h` > 0)
 - Archive (existing, keep): `MAX_FILES = 2000`, `MAX_FILE = 2_000_000`, `MAX_TOTAL = 80_000_000`
 
-- [ ] **Step 1: Write the failing web tests** for exact-limit / over-limit project bytes, asset
+- [x] **Step 1: Write the failing web tests** for exact-limit / over-limit project bytes, asset
   count, item count, aggregate SVG bytes, dimensions, and non-finite transforms.
-- [ ] **Step 2: Run** `npm --prefix apps/web test -- src/vector/vectorProject.test.mjs` and
+- [x] **Step 2: Run** `npm --prefix apps/web test -- src/vector/vectorProject.test.mjs` and
   confirm RED.
-- [ ] **Step 3: Implement** `parseVectorProject` (+ exported types/constants) and route
+- [x] **Step 3: Implement** `parseVectorProject` (+ exported types/constants) and route
   JSON open/load paths in `VectorWorkspace` through it; surface quota failures in the status
   message.
-- [ ] **Step 4: Write the failing Python ZIP tests** proving irrelevant compressed members are
+- [x] **Step 4: Write the failing Python ZIP tests** proving irrelevant compressed members are
   rejected without full-archive decompression, and that oversized selected members fail before
   unbounded reads.
-- [ ] **Step 5: Replace** `testzip()` with central-directory checks and streamed selected-member
+- [x] **Step 5: Replace** `testzip()` with central-directory checks and streamed selected-member
   limits in `import_svg_library.py`; wire CI selection for the new policy test.
-- [ ] **Step 6: Run** focused web + `scripts/test/test-global.sh tests/python/global/test_vector_import_library.py`
+- [x] **Step 6: Run** focused web + `scripts/test/test-global.sh tests/python/global/test_vector_import_library.py`
   (+ selection contract if the selector changed) and confirm GREEN.
-- [ ] **Step 7: Commit** `feat(vector): bound project and archive ingestion`
+- [x] **Step 7: Commit** `feat(vector): bound project and archive ingestion`
 
 ---
 
