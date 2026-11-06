@@ -37,12 +37,19 @@ function sanitizeSvg(input: string): string {
   if (root.localName.toLowerCase() !== 'svg') throw Error('Expected an SVG root');
   if (input.length > 2_000_000) throw Error('SVG exceeds 2 MB asset limit');
   const blocked = new Set(['script', 'foreignobject', 'iframe', 'object', 'embed', 'audio', 'video', 'image', 'animate', 'animatetransform', 'set']);
-  for (const e of Array.from(root.querySelectorAll('*'))) if (blocked.has(e.localName.toLowerCase())) e.remove();
+  // Preserve safe source styling, but block active content and all remote resource references.
+  const unsafeCss = /@import|@namespace|expression\s*\(|javascript\s*:|data\s*:|behavior\s*:|-moz-binding|url\s*\(\s*['"]?(?!#)/i;
+  for (const e of Array.from(root.querySelectorAll('*'))) {
+    if (blocked.has(e.localName.toLowerCase())) e.remove();
+    else if (e.localName.toLowerCase() === 'style' && unsafeCss.test(e.textContent || '')) e.remove();
+  }
   for (const e of [root, ...Array.from(root.querySelectorAll('*'))]) {
     for (const a of Array.from(e.attributes)) {
       const key = a.name.toLowerCase(), val = a.value.trim();
-      if (key.startsWith('on') || key === 'href' || key === 'xlink:href' || key === 'style' ||
-          (key === 'fill' || key === 'stroke' || key === 'filter' || key === 'clip-path' || key === 'mask') && (/url\(\s*['"]?(?!#)/i.test(val) || /javascript:/i.test(val))) e.removeAttribute(a.name);
+      if (key.startsWith('on') || key === 'href' || key === 'xlink:href' ||
+          /javascript\s*:|data\s*:/i.test(val) ||
+          ((key === 'style' || key === 'fill' || key === 'stroke' || key === 'filter' ||
+            key === 'clip-path' || key === 'mask') && unsafeCss.test(val))) e.removeAttribute(a.name);
     }
   }
   if (!root.hasAttribute('viewBox')) {
@@ -230,7 +237,7 @@ export default function VectorWorkspace({ locale }: { locale: string }) {
               {showGrid?<defs><pattern id="vs-grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="currentColor" opacity=".10" strokeWidth="1"/></pattern></defs>:null}
               {showGrid?<rect width={project.width} height={project.height} fill="url(#vs-grid)" pointerEvents="none"/>:null}
               {project.items.map(i=>{const asset=assetMap.get(i.assetId);if(!asset||i.hidden)return null;
-                const root=new DOMParser().parseFromString(isolatedSvg(asset.svg,i.id),'image/svg+xml').documentElement;
+                const root=new DOMParser().parseFromString(isolatedSvg(sanitizeSvg(asset.svg),i.id),'image/svg+xml').documentElement;
                 return <g key={i.id} transform={'rotate('+i.rotate+' '+(i.x+i.w/2)+' '+(i.y+i.h/2)+')'} opacity={i.opacity} onPointerDown={e=>{e.stopPropagation();onDown(e,i);}}>
                   <svg x={i.x} y={i.y} width={i.w} height={i.h} viewBox={root.getAttribute('viewBox')||'0 0 200 150'} preserveAspectRatio="xMidYMid meet" dangerouslySetInnerHTML={{__html:root.innerHTML}} style={{pointerEvents:'none'}}/>
                   {selected===i.id?<rect x={i.x} y={i.y} width={i.w} height={i.h} fill="none" stroke="var(--primary)" strokeWidth={2/zoom} strokeDasharray="6 4" pointerEvents="none"/>:null}
