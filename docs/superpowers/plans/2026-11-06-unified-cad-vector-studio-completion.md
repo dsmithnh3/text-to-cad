@@ -211,9 +211,9 @@ build123d/Open CASCADE, Node test runner, JSDOM, existing shell/Python CI runner
 - Consumes: Task 5/6 schema; Task 3 draft as recovery layer.
 - Produces: server-authoritative UUID + revision documents; draft remains recoverable overlay.
 
-- [ ] Failing tests for create/update/get with expected revision.
-- [ ] Implement store + reject-before-write.
-- [ ] Focused Python + web tests; commit.
+- [x] Failing tests for create/update/get with expected revision.
+- [x] Implement store + reject-before-write.
+- [x] Focused Python + web tests; commit.
 
 ---
 

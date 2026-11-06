@@ -56,7 +56,7 @@ The importer writes the SVG files into \`apps/web/src/vector/assets/\`, intentio
 | Experimental GLB->SVG | Native browser import; illustrative mesh projection |
 | True CAD->SVG feature topology and hidden-line projection | Not implemented |
 | Shared assembly graph / parametric round-trip | Not implemented |
-| Server-side vector project database | Not implemented |
+| Server-side vector project database | Durable UUID/revision store (`/api/v1/vector/projects`); client drafts remain overlay |
 | Per-instance raw SVG source editing | Implemented |
 | Structured SVG path/node editing | Not implemented |
 | Vector MCP tools and agent-controlled project editing | Not implemented |

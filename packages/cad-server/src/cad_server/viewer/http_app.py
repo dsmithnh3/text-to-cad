@@ -272,6 +272,7 @@ class CadApp:
 
         from .drawings import DrawingRenders
         from .prompt_files import PromptFiles
+        from .vector_projects import VectorProjectStore
 
         # The drawing route's renders, off the request and one per drawing (``drawings.py``).
         self.drawings = DrawingRenders(on_crash=lambda error: self._crashed(error, bugs_only=True))
@@ -279,6 +280,8 @@ class CadApp:
         # reads dispatched directly to its document server (``documents.py``).
         self.engine_documents = documents or EngineDocuments(on_crash=lambda error: self._crashed(error, bugs_only=True))
         self.prompt_files = PromptFiles()
+        # Durable Vector Studio projects (UUID + expected-revision mutations).
+        self.vector_projects = VectorProjectStore()
         self._exports = None
         self.start = to_posix_path(os.path.abspath(start if start is not None else _working_folder()))
         # Whether this computer has a file chooser for the home's Open (``POST /api/v1/local/pick``).
@@ -578,6 +581,8 @@ class CadApp:
             return self._documents(request, response, rest)
         if head == "exports":
             return self._export_jobs(request, response, rest)
+        if head == "vector":
+            return self._vector(request, response, rest)
         if head == "local":
             return self._local(request, response, rest)
         raise ApiError(404, f"no route {pathname}", _ROUTES_HINT)
@@ -829,6 +834,75 @@ class CadApp:
         if len(rest) <= 2 and (len(rest) < 2 or rest[1] == "file") and all(rest):
             return self._methods(request, {"GET": lambda: self.exports.handle(request, response, rest)})
         raise ApiError(404, f"no route {request.path}", _ROUTES_HINT)
+
+    # --- Vector Studio durable projects: /api/v1/vector/projects ---------------
+
+    def _vector(self, request, response, rest) -> None:
+        """``/api/v1/vector/projects``: create, get, and expected-revision update."""
+        if not rest or rest[0] != "projects":
+            raise ApiError(404, f"no route {request.path}", _ROUTES_HINT)
+        if len(rest) == 1:
+            return self._methods(request, {
+                "POST": lambda: self._vector_create(request, response),
+            })
+        if len(rest) == 2 and rest[1]:
+            ident = rest[1]
+            return self._methods(request, {
+                "GET": lambda: self._vector_get(response, ident),
+                "PUT": lambda: self._vector_update(request, response, ident),
+            })
+        raise ApiError(404, f"no route {request.path}", _ROUTES_HINT)
+
+    def _vector_create(self, request, response) -> None:
+        from .vector_projects import MAX_BODY_BYTES, VectorProjectInvalid
+
+        self._limit(request, MAX_BODY_BYTES)
+        payload = json.loads(request.body() or b"{}")
+        if type(payload) is not dict or "project" not in payload or not set(payload) <= {"project"}:
+            raise ValueError('a vector project create is {"project": <object or JSON string>}')
+        try:
+            document = self.vector_projects.create(payload["project"])
+        except VectorProjectInvalid as error:
+            raise ApiError(400, str(error), "fix the project as the schema and budgets require") from error
+        send_json(response, 201, document)
+
+    def _vector_get(self, response, ident: str) -> None:
+        from .vector_projects import VectorProjectNotFound
+
+        try:
+            document = self.vector_projects.get(ident)
+        except VectorProjectNotFound as error:
+            raise ApiError(404, str(error), "create the project, or open one that exists") from error
+        send_json(response, 200, document)
+
+    def _vector_update(self, request, response, ident: str) -> None:
+        from .vector_projects import (
+            MAX_BODY_BYTES,
+            VectorProjectInvalid,
+            VectorProjectNotFound,
+            VectorProjectStaleRevision,
+        )
+
+        self._limit(request, MAX_BODY_BYTES)
+        payload = json.loads(request.body() or b"{}")
+        if type(payload) is not dict or set(payload) != {"expectedRevision", "project"}:
+            raise ValueError(
+                'a vector project update is {"expectedRevision": <int>, "project": <object or JSON string>}',
+            )
+        try:
+            document = self.vector_projects.update(ident, payload["expectedRevision"], payload["project"])
+        except VectorProjectInvalid as error:
+            raise ApiError(400, str(error), "fix the project as the schema and budgets require") from error
+        except VectorProjectNotFound as error:
+            raise ApiError(404, str(error), "create the project, or open one that exists") from error
+        except VectorProjectStaleRevision as error:
+            raise ApiError(
+                409,
+                str(error),
+                "reload the project and retry with its current revision",
+                currentRevision=error.current,
+            ) from error
+        send_json(response, 200, document)
 
     # --- a kind's documents: /api/v1/documents/<kind>/<id>/... --------------------------
 
