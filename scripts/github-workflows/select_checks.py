@@ -294,6 +294,7 @@ RULES: tuple[Rule, ...] = (
     # The test runners and the gates each one feeds.
     Rule(("scripts/test/test-python.sh",), select(cadgen=[CADGEN_SUITE], skills=[SKILL_SUITES])),
     Rule(("scripts/test/test-global.sh",), select(policy=[POLICY_SUITE])),
+    Rule(("scripts/vector/**",), select(flags=["web_client", "packaging"])),  # local vector import and GLB projection utilities
     Rule(("scripts/test/test-js.sh", "scripts/test/check-*.mjs"), select(flags=["core_js", "web_ui", "web_client", "mcp"])),
     Rule(("scripts/test/test-api.sh",), select(flags=["api"])),
     Rule(("scripts/test/test-docs.sh", "scripts/brand/**"), select(flags=["docs"])),
