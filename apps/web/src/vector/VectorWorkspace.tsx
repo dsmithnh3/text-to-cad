@@ -108,7 +108,13 @@ export default function VectorWorkspace({ locale }: { locale: string }) {
     commit(p=>({...p,items:[...p.items,next]}));setSelected(next.id);setMessage('Added '+a.name);
   };
   const point = (event:ReactPointerEvent<SVGSVGElement>) => {
-    const r=stage.current!.getBoundingClientRect(); return {x:(event.clientX-r.left-pan.x)/zoom,y:(event.clientY-r.top-pan.y)/zoom};
+    const scene=stage.current!;
+    const ctm=scene.getScreenCTM();
+    if (!ctm) return {x:0,y:0};
+    const cursor=scene.createSVGPoint();
+    cursor.x=event.clientX; cursor.y=event.clientY;
+    const v=cursor.matrixTransform(ctm.inverse());
+    return {x:(v.x-pan.x)/zoom,y:(v.y-pan.y)/zoom};
   };
   const onDown = (event:ReactPointerEvent<SVGSVGElement>, item:Item) => {
     if (item.locked) return; const p=point(event);
