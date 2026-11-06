@@ -6,6 +6,11 @@
  * fills in.
  */
 export default {
+  "vector.sourceEditor": "Edit SVG source",
+  "vector.sourceHint": "Edit this instance only. Changes create a separate vector component; the original asset remains unchanged.",
+  "vector.applySource": "Apply SVG changes",
+  "vector.sourceSaved": "Edited SVG component saved",
+  "vector.sourceFailed": "Cannot apply SVG changes",
   // Vector Studio workspace, aligned with the existing viewer's locale keys.
   "vector.workspaceModes": "Workspace modes",
   "vector.workspaceTitle": "Vector Studio",
