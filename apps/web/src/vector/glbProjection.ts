@@ -53,7 +53,9 @@ export async function projectGLB(file: File, maxTriangles=30000): Promise<string
   });
   if(result.length===0)throw Error('No supported triangular mesh faces');
   const xs=result.flatMap(t=>t.xy.map(p=>p[0])),ys=result.flatMap(t=>t.xy.map(p=>p[1]));
-  const loX=Math.min(...xs),loY=Math.min(...ys),hiX=Math.max(...xs),hiY=Math.max(...ys);
+  let loX=Infinity,loY=Infinity,hiX=-Infinity,hiY=-Infinity;
+  for (const value of xs) { loX=Math.min(loX,value); hiX=Math.max(hiX,value); }
+  for (const value of ys) { loY=Math.min(loY,value); hiY=Math.max(hiY,value); }
   const scale=Math.min(1200/Math.max(1e-5,hiX-loX),800/Math.max(1e-5,hiY-loY));
   const w=Math.max(64,Math.ceil((hiX-loX)*scale+24)),h=Math.max(64,Math.ceil((hiY-loY)*scale+24));
   const polys=result.sort((a,b)=>a.z-b.z).map(tri=>'<polygon points="'+tri.xy.map(p=>((p[0]-loX)*scale+12).toFixed(2)+','+((p[1]-loY)*scale+12).toFixed(2)).join(' ')+'" fill="'+tri.fill+'"/>').join('');
