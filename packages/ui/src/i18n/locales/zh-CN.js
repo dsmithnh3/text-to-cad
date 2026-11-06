@@ -4,6 +4,11 @@
  * Brand names (GitHub, Discord, Finder) and each language's own name stay as that language writes them.
  */
 export default {
+  "vector.sourceEditor": "编辑 SVG 源代码",
+  "vector.sourceHint": "仅修改当前实例。更改会创建独立矢量组件，原始素材保持不变。",
+  "vector.applySource": "应用 SVG 修改",
+  "vector.sourceSaved": "已保存编辑后的 SVG 组件",
+  "vector.sourceFailed": "无法应用 SVG 修改",
   // Vector Studio workspace, aligned with the existing viewer's locale keys.
   "vector.workspaceModes": "工作区模式",
   "vector.workspaceTitle": "矢量工作室",
