@@ -161,6 +161,9 @@ Contract mirrors that must stay in lockstep (each has a sync test):
 a STEP's: their parse and their canonical spelling), one fixture, `lib/cadRefs.parity.json`,
 which also holds the element names (`elementNameCases`) that the engine's `ELEMENT_NAME`
 (`cad/engine/kernel/trace.py`) must accept (`test_naming.py`).
+`lib/vectorProject.js` is the Vector Studio project parse/validate contract
+(`@cad/core/lib/vectorProject.js`); its budgets and accept/reject cases live in
+`lib/vectorProject.conformance.json` for TypeScript and Python parsers to share.
 
 Where the mechanism is written:
 
