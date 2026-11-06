@@ -41,3 +41,10 @@
 .vs-file-button svg{width:14px;height:14px}
 @media(max-width:1040px){.vs-main{grid-template-columns:210px minmax(0,1fr) 220px}.vs-header{padding:0 8px}.vs-subtitle{display:none}}
 @media(max-width:720px){.vs-main{grid-template-columns:150px minmax(0,1fr)}.vs-right{display:none}.vs-header{height:auto;min-height:52px;flex-wrap:wrap;padding:8px}.vs-header button{font-size:11px}.vs-main .vs-asset-icon{display:none}}
+
+.vs-source-editor{display:flex;flex-direction:column;gap:8px;min-width:0}
+.vs-source-editor>button{align-self:flex-start}
+.vs-source-body{display:grid;gap:8px}
+.vs-source-body textarea{min-width:0;width:100%;resize:vertical;box-sizing:border-box;border:1px solid var(--input);border-radius:6px;background:var(--background);color:var(--foreground);font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:11px;padding:8px;line-height:1.45;min-height:125px;max-height:360px}
+.vs-source-body textarea:focus{outline:2px solid var(--ring);outline-offset:1px}
+.vs-source-body button{justify-self:start}
