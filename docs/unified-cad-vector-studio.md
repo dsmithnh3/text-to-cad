@@ -21,8 +21,8 @@ Use the new **Vector Studio** tab. Add locally held SVG assets from the Library,
 ### CAD -> Vector
 1. Generate a model with the original CAD skill and build123d.
 2. Export GLB using the normal CAD export service.
-3. Run \`python3 scripts/vector/glb_to_svg.py ./model.glb -o ./model.svg\` (experimental, approximation of surfaces).
-4. Import \`model.svg\` into Vector Studio, compose and export. Do **not** treat projected SVG as a precision manufacturing drawing.
+3. Switch to Vector Studio and use **Import GLB** (experimental, approximation of mesh surfaces).
+4. Compose and export the resulting editable polygon asset. Do **not** treat projected SVG as a precision manufacturing drawing.
 5. Use CAD's engineering-drawing and DXF skills, not Vector Studio, when dimensioned production output is required.
 
 ## Local source-derived library (not public repo)
@@ -53,14 +53,16 @@ The importer writes the SVG files into \`apps/web/src/vector/assets/\`, intentio
 | SVG scene composition and editable export | Implemented |
 | Layers, ordering, selection, transforms | Implemented |
 | JSON project save/load, undo/redo | Implemented |
-| Experimental GLB->SVG | Python script, no native button yet |
+| Experimental GLB->SVG | Native browser import; illustrative mesh projection |
 | True CAD->SVG feature topology and hidden-line projection | Not implemented |
 | Shared assembly graph / parametric round-trip | Not implemented |
 | Server-side vector project database | Not implemented |
-| Full source SVG node/path editing | Not implemented |
+| Per-instance raw SVG source editing | Implemented |
+| Structured SVG path/node editing | Not implemented |
+| Vector MCP tools and agent-controlled project editing | Not implemented |
 | Full parity with prior 12MB offline Vector Studio prototype | Not claimed |
 | Manufacturer-certified equipment / compliant piping sizing | Not implemented |
 
-**Security:** Imported SVG is sanitized for active elements and remote URLs, but external assets should still be regarded as untrusted. Local asset importer is intended for your own trusted extraction. Never embed session tokens in vector JSON exports.
+**Security:** Imported SVG drops active elements, CSS, event handlers, external resources, and undeclared fragment references. GLB projection accepts only self-contained embedded resources. External assets should still be regarded as untrusted, and project/archive aggregate budgets remain planned hardening. Local asset importer is intended for your own trusted extraction. Never embed session tokens in vector JSON exports.
 
-**Fork state:** This implementation started from the fork's main branch (0.10.3). Upstream main had moved to 0.10.4 when work began. Rebase/sync upstream and rerun its CI before merging or release. Do not update upstream release pins manually.
+**Fork state:** This implementation started from the fork's main branch (0.10.3) and was reconciled with upstream 0.10.4 during M0. Do not update upstream release pins manually; rerun the selected CI and packaged browser checks before merging or release.

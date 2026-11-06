@@ -41,8 +41,8 @@
 
 - [x] Fetch PR #1, fork main, and upstream main; record exact revisions and merge base.
 - [x] Run independent architecture, frontend, SVG/security, MCP/skills, and QA reviews.
-- [ ] Merge `upstream/main`, resolve conflicts by preserving upstream contracts and tested Vector behavior, then run `scripts/release/sync-version.mjs --check`.
-- [ ] Commit the reconciliation separately from functional fixes.
+- [x] Merge `upstream/main`, resolve conflicts by preserving upstream contracts and tested Vector behavior, then run `scripts/release/sync-version.mjs --check`.
+- [x] Commit the reconciliation separately from functional fixes.
 
 ### Task 2: Restore web CI and independent workspace behavior
 
@@ -133,7 +133,7 @@
 **Interfaces:**
 - Produces: reviewable evidence for PR readiness, without claiming unrun checks.
 
-- [ ] Run `scripts/test/test-js.sh --select web`, relevant global policy tests, `scripts/bundle/bundle.sh --check`, and selected Python package tests.
-- [ ] Run the packaged Viewer/browser smoke with real Chromium and capture actual pass/fail evidence.
-- [ ] Exercise SVG import, transform, source edit, save/load, export, workspace switching, and CAD document preservation in a real browser.
-- [ ] Record remaining limitations: no Vector MCP tools, no unified component registry, projection is illustrative, and advanced editing remains future work.
+- [x] Run `scripts/test/test-js.sh --select web`, relevant global policy tests, `scripts/bundle/bundle.sh --check`, and selected Python package tests. CAD library passed 704/704 and CAD MCP passed 23/23; CAD server passed 1,147/1,151, with four pre-existing daemon-cleanup assertions reproducing serially in untouched engine tests.
+- [x] Run the packaged Viewer/browser smoke with real Chromium and capture actual pass/fail evidence.
+- [ ] Exercise transform, source edit, save/load, and export in a real browser; workspace switching, SVG import/insertion/sanitization, and CAD mounting are verified.
+- [x] Record remaining limitations: no Vector MCP tools, no unified component registry, projection is illustrative, and advanced editing remains future work.
