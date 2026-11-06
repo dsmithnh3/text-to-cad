@@ -239,6 +239,12 @@ test('a page whose engine is gone says so in its language, over the page, until 
     assert.deepEqual([under?.hasAttribute('inert'), under?.getAttribute('aria-hidden')], [true, 'true']);
     assert.doesNotMatch(alert()?.textContent ?? '', /Failed to fetch|\{/, 'never the failure itself');
     assert.equal(snapshot() !== undefined, true, 'the page stays under it');
+    const workspaceButtons = window.document.querySelectorAll('nav button');
+    await act(() => workspaceButtons[1].click());
+    assert.equal(alert(), null, 'the client-only Vector workspace remains available while CAD is stopped');
+    assert.equal(window.document.querySelector('[inert]'), null, 'Vector remains interactive without the CAD engine');
+    await act(() => workspaceButtons[0].click());
+    assert.match(alert()?.textContent ?? '', /CAD が動いていません。/);
     catalog = 'restarted';
     await act(() => client.refresh({ file: ONE }).catch(() => {}));
     // An engine that refuses the token runs: the page's link was replaced (`cad server --rotate-token`).

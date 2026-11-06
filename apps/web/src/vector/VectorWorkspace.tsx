@@ -1,5 +1,6 @@
 import { translator } from '@cad/ui/i18n';
 import { projectGLB } from './glbProjection';
+import { isolateSvg, sanitizeSvg } from './svgSafety';
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps, type PointerEvent as ReactPointerEvent } from 'react';
 import { Button } from '@cad/ui/primitives/button';
 import { Box, ChevronDown, ChevronUp, Copy, Download, Eye, EyeOff, FolderOpen, Grid3X3, Layers, Lock, LockOpen, Plus, Redo2, RotateCcw, Save, Search, Trash2, Undo2, Upload, ZoomIn, ZoomOut } from 'lucide-react';
@@ -19,7 +20,11 @@ const builtin: Asset[] = [
   { id: 'room-shell', name: 'Room shell · starter', category: 'Building', provenance: 'user-import', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 130"><path d="M10 42 108 10l82 37-98 36Z" fill="#b4c6d2" stroke="#64748b"/><path d="M10 42v65l82 20V83Z" fill="#e0e7ee" stroke="#64748b"/><path d="M92 83v44l98-39V47Z" fill="#93aabc" stroke="#64748b"/></svg>' },
   { id: 'demo-unit', name: 'Equipment block · starter', category: 'Equipment', provenance: 'user-import', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 100"><path d="M8 28 130 4l42 21-120 26Z" fill="#d7e1ea" stroke="#4b6173"/><path d="M8 28v47l44 20V51Z" fill="#b9ced9" stroke="#4b6173"/><path d="M52 51v44l120-25V25Z" fill="#8ca8b8" stroke="#4b6173"/><circle cx="87" cy="63" r="19" fill="#324e64" stroke="#e4f0f4" stroke-width="3"/><path d="M87 48v30M72 63h30" stroke="#e4f0f4" stroke-width="3"/></svg>' }
 ];
-const rawLibrary = import.meta.glob('./assets/**/*.svg', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+// Vite supplies `glob`; the Node test bundle deliberately does not. Keep the optional
+// source-derived catalog out of non-Vite hosts rather than making App imports crash.
+const rawLibrary = typeof import.meta.glob === 'function'
+  ? import.meta.glob('./assets/**/*.svg', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
+  : {};
 const bundledAssets: Asset[] = Object.entries(rawLibrary).map(([path, svg]) => ({
   id: 'extracted:' + path, name: path.split('/').pop()?.replace(/\.svg$/i, '').replace(/[_-]/g, ' ') || 'Component',
   category: path.split('/').slice(-2, -1)[0] || 'Extracted', svg, provenance: 'source-derived'
@@ -30,50 +35,6 @@ const download = (name: string, data: Blob) => {
   link.href = url; link.download = name; document.body.append(link); link.click(); link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 3000);
 };
-function sanitizeSvg(input: string): string {
-  const parsed = new DOMParser().parseFromString(input, 'image/svg+xml');
-  if (parsed.querySelector('parsererror')) throw Error('Invalid SVG XML');
-  const root = parsed.documentElement;
-  if (root.localName.toLowerCase() !== 'svg') throw Error('Expected an SVG root');
-  if (input.length > 2_000_000) throw Error('SVG exceeds 2 MB asset limit');
-  const blocked = new Set(['script', 'foreignobject', 'iframe', 'object', 'embed', 'audio', 'video', 'image', 'animate', 'animatetransform', 'set']);
-  // Preserve safe source styling, but block active content and all remote resource references.
-  const unsafeCss = /@import|@namespace|expression\s*\(|javascript\s*:|data\s*:|behavior\s*:|-moz-binding|url\s*\(\s*['"]?(?!#)/i;
-  for (const e of Array.from(root.querySelectorAll('*'))) {
-    if (blocked.has(e.localName.toLowerCase())) e.remove();
-    else if (e.localName.toLowerCase() === 'style' && unsafeCss.test(e.textContent || '')) e.remove();
-  }
-  for (const e of [root, ...Array.from(root.querySelectorAll('*'))]) {
-    for (const a of Array.from(e.attributes)) {
-      const key = a.name.toLowerCase(), val = a.value.trim();
-      if (key.startsWith('on') || key === 'href' || key === 'xlink:href' ||
-          /javascript\s*:|data\s*:/i.test(val) ||
-          ((key === 'style' || key === 'fill' || key === 'stroke' || key === 'filter' ||
-            key === 'clip-path' || key === 'mask') && unsafeCss.test(val))) e.removeAttribute(a.name);
-    }
-  }
-  if (!root.hasAttribute('viewBox')) {
-    const w = Number(root.getAttribute('width')) || 200, h = Number(root.getAttribute('height')) || 150;
-    root.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
-  }
-  return new XMLSerializer().serializeToString(root);
-}
-function isolatedSvg(xml: string, suffix: string): string {
-  const doc = new DOMParser().parseFromString(xml, 'image/svg+xml');
-  const root = doc.documentElement;
-  const ids = Array.from(root.querySelectorAll('[id]'));
-  const mapping = new Map(ids.map(n => [n.id, suffix + '-' + n.id]));
-  for (const node of ids) node.id = mapping.get(node.id)!;
-  for (const el of [root, ...Array.from(root.querySelectorAll('*'))]) for (const a of Array.from(el.attributes)) {
-    let v = a.value;
-    for (const [oldId, newId] of mapping) {
-      v = v.replaceAll('url(#' + oldId + ')', 'url(#' + newId + ')');
-      if (v === '#' + oldId) v = '#' + newId;
-    }
-    if (v !== a.value) el.setAttribute(a.name, v);
-  }
-  return new XMLSerializer().serializeToString(root);
-}
 const empty = (): Project => ({ schema: 'cad-vector-studio/v1', name: 'Untitled vector assembly', items: [], assets: [], width: 1200, height: 760 });
 function load(): Project {
   try {
@@ -121,7 +82,7 @@ export default function VectorWorkspace({ locale }: { locale: string }) {
     const next:Item = {id:id(),assetId:a.id,name:a.name,x:330+project.items.length*24,y:150+project.items.length*20,w:240,h:160,rotate:0,opacity:1,hidden:false,locked:false};
     commit(p=>({...p,items:[...p.items,next]}));setSelected(next.id);setMessage('Added '+a.name);
   };
-  const point = (event:ReactPointerEvent<SVGSVGElement>) => {
+  const point = (event:ReactPointerEvent<SVGElement>) => {
     const scene=stage.current!;
     const ctm=scene.getScreenCTM();
     if (!ctm) return {x:0,y:0};
@@ -130,7 +91,7 @@ export default function VectorWorkspace({ locale }: { locale: string }) {
     const v=cursor.matrixTransform(ctm.inverse());
     return {x:(v.x-pan.x)/zoom,y:(v.y-pan.y)/zoom};
   };
-  const onDown = (event:ReactPointerEvent<SVGSVGElement>, item:Item) => {
+  const onDown = (event:ReactPointerEvent<SVGElement>, item:Item) => {
     if (item.locked) return; const p=point(event);
     setSelected(item.id); drag.current={id:item.id,px:p.x,py:p.y,ox:item.x,oy:item.y};
     stage.current?.setPointerCapture(event.pointerId);
@@ -194,7 +155,7 @@ export default function VectorWorkspace({ locale }: { locale: string }) {
     output.setAttribute('width',String(project.width)); output.setAttribute('height',String(project.height));
     project.items.filter(i=>!i.hidden).forEach(i=>{
       const asset=assetMap.get(i.assetId);if(!asset)return;
-      const doc = new DOMParser().parseFromString(isolatedSvg(asset.svg,i.id),'image/svg+xml');
+      const doc = new DOMParser().parseFromString(isolateSvg(asset.svg,i.id),'image/svg+xml');
       const el=doc.documentElement; const nested=document.createElementNS(NS,'svg');
       nested.setAttribute('x',String(i.x));nested.setAttribute('y',String(i.y));nested.setAttribute('width',String(i.w));
       nested.setAttribute('height',String(i.h));nested.setAttribute('viewBox',el.getAttribute('viewBox')||'0 0 200 150');
@@ -272,7 +233,7 @@ export default function VectorWorkspace({ locale }: { locale: string }) {
               {showGrid?<defs><pattern id="vs-grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="currentColor" opacity=".10" strokeWidth="1"/></pattern></defs>:null}
               {showGrid?<rect width={project.width} height={project.height} fill="url(#vs-grid)" pointerEvents="none"/>:null}
               {project.items.map(i=>{const asset=assetMap.get(i.assetId);if(!asset||i.hidden)return null;
-                const root=new DOMParser().parseFromString(isolatedSvg(sanitizeSvg(asset.svg),i.id),'image/svg+xml').documentElement;
+                const root=new DOMParser().parseFromString(isolateSvg(sanitizeSvg(asset.svg),i.id),'image/svg+xml').documentElement;
                 return <g key={i.id} transform={'rotate('+i.rotate+' '+(i.x+i.w/2)+' '+(i.y+i.h/2)+')'} opacity={i.opacity} onPointerDown={e=>{e.stopPropagation();onDown(e,i);}}>
                   <svg x={i.x} y={i.y} width={i.w} height={i.h} viewBox={root.getAttribute('viewBox')||'0 0 200 150'} preserveAspectRatio="xMidYMid meet" dangerouslySetInnerHTML={{__html:root.innerHTML}} style={{pointerEvents:'none'}}/>
                   <rect x={i.x} y={i.y} width={i.w} height={i.h} fill="transparent" pointerEvents={i.locked ? 'none' : 'all'} />

@@ -4,7 +4,7 @@
  * paths but is not a CAD-accurate HLR/vector engineering export.
  */
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { Color, Mesh, Vector3 } from 'three';
+import { Color, LoadingManager, Mesh, Vector3 } from 'three';
 
 type Tri = { z: number; xy: [number,number][]; fill: string };
 const iso = (v: Vector3): [number,number] => [
@@ -13,6 +13,14 @@ const iso = (v: Vector3): [number,number] => [
 ];
 const eye = new Vector3(0.56,0.56,0.61).normalize();
 const light = new Vector3(-.45,.35,.82).normalize();
+export function createProjectionLoadingManager(): LoadingManager {
+  const manager = new LoadingManager();
+  manager.setURLModifier(url => {
+    if (url.startsWith('data:') || url.startsWith('blob:')) return url;
+    throw Error(`Vector projection requires a self-contained GLB; external resource rejected: ${url}`);
+  });
+  return manager;
+}
 function colorOf(mesh:Mesh, index:number): string {
   const material = Array.isArray(mesh.material) ? mesh.material[index] || mesh.material[0] : mesh.material;
   const candidate = material as unknown as {color?:Color};
@@ -25,7 +33,7 @@ function channel(hex:string, brightness:number):string {
 export async function projectGLB(file: File, maxTriangles=30000): Promise<string> {
   if(file.size>45_000_000) throw Error('GLB exceeds 45 MB viewer projection limit');
   const data=await file.arrayBuffer();
-  const gltf=await new GLTFLoader().parseAsync(data,'');
+  const gltf=await new GLTFLoader(createProjectionLoadingManager()).parseAsync(data,'');
   gltf.scene.updateMatrixWorld(true);
   const result:Tri[]=[];
   gltf.scene.traverse(node=>{
@@ -36,7 +44,7 @@ export async function projectGLB(file: File, maxTriangles=30000): Promise<string
     const idx=geo.getIndex();
     const faceCount=Math.floor((idx?.count ?? positions.count)/3);
     if(result.length+faceCount>maxTriangles)throw Error('More than '+maxTriangles+' triangles; simplify the mesh first');
-    const groupFor=(i:number)=>geo.groups.find(g=>i>=g.start && i<g.start+g.count)?.materialIndex ?? 0;
+    const groupFor=(i:number)=>geo.groups.find((g:{start:number;count:number;materialIndex?:number})=>i>=g.start && i<g.start+g.count)?.materialIndex ?? 0;
     const a=new Vector3(),b=new Vector3(),c=new Vector3();
     const ab=new Vector3(),ac=new Vector3(),norm=new Vector3();
     for(let i=0;i<faceCount;i++){
