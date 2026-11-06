@@ -1,3 +1,4 @@
+import { translator } from '@cad/ui/i18n';
 import { projectGLB } from './glbProjection';
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps, type PointerEvent as ReactPointerEvent } from 'react';
 import { Button } from '@cad/ui/primitives/button';
@@ -76,7 +77,8 @@ function load(): Project {
   } catch { /* no storage on private tabs */ }
   return empty();
 }
-export default function VectorWorkspace() {
+export default function VectorWorkspace({ locale }: { locale: string }) {
+  const tr = translator(locale);
   const [project, setProject] = useState<Project>(load);
   const [selected, setSelected] = useState('');
   const [filter, setFilter] = useState('');
@@ -178,46 +180,46 @@ export default function VectorWorkspace() {
   const ButtonSmall=(props:ComponentProps<typeof Button>)=><Button variant="ghost" size="icon-sm" {...props}/>;
   return <div className="vs-root bg-background text-foreground">
     <div className="vs-header border-b border-border bg-background">
-      <div className="flex items-center gap-2 min-w-0"><Box className="size-4 text-muted-foreground"/><input className="vs-title" aria-label="Project name" value={project.name} onChange={e=>setProject(p=>({...p,name:e.target.value}))}/><span className="vs-subtitle">VECTOR WORKSPACE</span></div>
+      <div className="flex items-center gap-2 min-w-0"><Box className="size-4 text-muted-foreground"/><input className="vs-title" aria-label={tr('vector.projectName')} value={project.name} onChange={e=>setProject(p=>({...p,name:e.target.value}))}/><span className="vs-subtitle">{tr('vector.workspace')}</span></div>
       <div className="flex items-center gap-1">
-        <ButtonSmall aria-label="Undo" title="Undo" disabled={!history.length} onClick={undo}><Undo2/></ButtonSmall>
-        <ButtonSmall aria-label="Redo" title="Redo" disabled={!future.length} onClick={redo}><Redo2/></ButtonSmall>
-        <ButtonSmall aria-label="Duplicate" title="Duplicate" disabled={!selected} onClick={doDuplicate}><Copy/></ButtonSmall>
-        <ButtonSmall aria-label="Delete" title="Delete" disabled={!selected} onClick={doDelete}><Trash2/></ButtonSmall>
-        <label className="vs-file-button"><FolderOpen className="size-3.5"/> Open <input type="file" hidden accept=".json" onChange={e=>void loadProject(e.target.files?.[0])}/></label>
-        <Button size="sm" variant="outline" onClick={saveProject}><Save/> Save project</Button>
-        <Button size="sm" onClick={exportSvg}><Download/> Export SVG</Button>
+        <ButtonSmall aria-label={tr('vector.undo')} title={tr('vector.undo')} disabled={!history.length} onClick={undo}><Undo2/></ButtonSmall>
+        <ButtonSmall aria-label={tr('vector.redo')} title={tr('vector.redo')} disabled={!future.length} onClick={redo}><Redo2/></ButtonSmall>
+        <ButtonSmall aria-label={tr('vector.duplicate')} title={tr('vector.duplicate')} disabled={!selected} onClick={doDuplicate}><Copy/></ButtonSmall>
+        <ButtonSmall aria-label={tr('vector.delete')} title={tr('vector.delete')} disabled={!selected} onClick={doDelete}><Trash2/></ButtonSmall>
+        <label className="vs-file-button"><FolderOpen className="size-3.5"/> {tr('vector.open')} <input type="file" hidden accept=".json" onChange={e=>void loadProject(e.target.files?.[0])}/></label>
+        <Button size="sm" variant="outline" onClick={saveProject}><Save/> {tr('vector.saveProject')}</Button>
+        <Button size="sm" onClick={exportSvg}><Download/> {tr('vector.exportSvg')}</Button>
       </div>
     </div>
     <div className="vs-main">
       <aside className="vs-left bg-sidebar border-r border-sidebar-border">
         <div className="vs-switch">
-          <Button size="sm" variant={tab==='assets'?'secondary':'ghost'} onClick={()=>setTab('assets')}><Grid3X3/> Library</Button>
-          <Button size="sm" variant={tab==='layers'?'secondary':'ghost'} onClick={()=>setTab('layers')}><Layers/> Layers</Button>
+          <Button size="sm" variant={tab==='assets'?'secondary':'ghost'} onClick={()=>setTab('assets')}><Grid3X3/> {tr('vector.library')}</Button>
+          <Button size="sm" variant={tab==='layers'?'secondary':'ghost'} onClick={()=>setTab('layers')}><Layers/> {tr('vector.layers')}</Button>
         </div>
-        {tab==='assets'?<><div className="vs-search"><Search className="size-4 text-muted-foreground"/><input value={filter} onChange={e=>setFilter(e.target.value)} placeholder="Search components" aria-label="Search components"/></div>
-          <label className="vs-import"><Upload className="size-4"/> Import SVG assets <input type="file" hidden multiple accept=".svg" onChange={e=>void editFile(e.target.files)}/></label>
-          <label className="vs-import"><Box className="size-4"/> Import CAD GLB as SVG <input type="file" hidden accept=".glb,model/gltf-binary" onChange={e=>void importGlb(e.target.files?.[0])}/></label>
-          <div className="vs-catalog">{assets.map(a=><button key={a.id} type="button" onClick={()=>insert(a)} className="vs-asset" title={'Add '+a.name}>
-            <span className="vs-asset-icon"><Box className="size-5"/></span><span className="min-w-0"><strong>{a.name}</strong><small>{a.category} · {a.provenance==='source-derived'?'extracted':'local'}</small></span><Plus className="size-3.5 text-muted-foreground"/></button>)}
-            {assets.length===0?<p className="vs-muted">No matching assets. Import SVG files to expand the library.</p>:null}</div>
+        {tab==='assets'?<><div className="vs-search"><Search className="size-4 text-muted-foreground"/><input value={filter} onChange={e=>setFilter(e.target.value)} placeholder={tr('vector.search')} aria-label={tr('vector.search')}/></div>
+          <label className="vs-import"><Upload className="size-4"/> {tr('vector.importSvg')} <input type="file" hidden multiple accept=".svg" onChange={e=>void editFile(e.target.files)}/></label>
+          <label className="vs-import"><Box className="size-4"/> {tr('vector.importGlb')} <input type="file" hidden accept=".glb,model/gltf-binary" onChange={e=>void importGlb(e.target.files?.[0])}/></label>
+          <div className="vs-catalog">{assets.map(a=><button key={a.id} type="button" onClick={()=>insert(a)} className="vs-asset" title={tr('vector.add')+' '+a.name}>
+            <span className="vs-asset-icon"><Box className="size-5"/></span><span className="min-w-0"><strong>{a.name}</strong><small>{a.category} · {a.provenance==='source-derived'?tr('vector.extracted'):tr('vector.local')}</small></span><Plus className="size-3.5 text-muted-foreground"/></button>)}
+            {assets.length===0?<p className="vs-muted">{tr('vector.noAssets')}</p>:null}</div>
         </>:<div className="vs-catalog">{[...project.items].reverse().map(item=><div key={item.id} className={'vs-layer '+(selected===item.id?'vs-selected':'')} onClick={()=>setSelected(item.id)}>
           <span className="truncate flex-1">{item.name}</span>
-          <ButtonSmall title="Hide/show layer" onClick={e=>{e.stopPropagation();commit(p=>({...p,items:p.items.map(i=>i.id===item.id?{...i,hidden:!i.hidden}:i)}));}}>{item.hidden?<EyeOff/>:<Eye/>}</ButtonSmall>
-          <ButtonSmall title="Lock layer" onClick={e=>{e.stopPropagation();commit(p=>({...p,items:p.items.map(i=>i.id===item.id?{...i,locked:!i.locked}:i)}));}}>{item.locked?<Lock/>:<LockOpen/>}</ButtonSmall></div>)}</div>}
+          <ButtonSmall title={tr('vector.hideLayer')} onClick={e=>{e.stopPropagation();commit(p=>({...p,items:p.items.map(i=>i.id===item.id?{...i,hidden:!i.hidden}:i)}));}}>{item.hidden?<EyeOff/>:<Eye/>}</ButtonSmall>
+          <ButtonSmall title={tr('vector.lockLayer')} onClick={e=>{e.stopPropagation();commit(p=>({...p,items:p.items.map(i=>i.id===item.id?{...i,locked:!i.locked}:i)}));}}>{item.locked?<Lock/>:<LockOpen/>}</ButtonSmall></div>)}</div>}
       </aside>
       <section className="vs-center bg-background">
         <div className="vs-toolbar border-b border-border">
-          <span className="vs-muted">{project.items.length} components · Isometric / vector</span><div className="flex items-center gap-1">
-            <ButtonSmall title="Toggle grid" aria-label="Toggle grid" onClick={()=>setShowGrid(v=>!v)}><Grid3X3/></ButtonSmall>
-            <label className="vs-tiny-check"><input type="checkbox" checked={snap} onChange={e=>setSnap(e.target.checked)}/> Snap</label>
-            <ButtonSmall title="Zoom out" aria-label="Zoom out" onClick={()=>setZoom(z=>Math.max(.25,z*.8))}><ZoomOut/></ButtonSmall>
+          <span className="vs-muted">{project.items.length} {tr('vector.components')}</span><div className="flex items-center gap-1">
+            <ButtonSmall title={tr('vector.grid')} aria-label={tr('vector.grid')} onClick={()=>setShowGrid(v=>!v)}><Grid3X3/></ButtonSmall>
+            <label className="vs-tiny-check"><input type="checkbox" checked={snap} onChange={e=>setSnap(e.target.checked)}/> {tr('vector.snap')}</label>
+            <ButtonSmall title={tr('vector.zoomOut')} aria-label={tr('vector.zoomOut')} onClick={()=>setZoom(z=>Math.max(.25,z*.8))}><ZoomOut/></ButtonSmall>
             <span className="vs-zoom">{Math.round(zoom*100)}%</span>
-            <ButtonSmall title="Zoom in" aria-label="Zoom in" onClick={()=>setZoom(z=>Math.min(3,z*1.25))}><ZoomIn/></ButtonSmall>
-            <ButtonSmall title="Reset view" aria-label="Reset view" onClick={()=>{setZoom(1);setPan({x:0,y:0});}}><RotateCcw/></ButtonSmall>
+            <ButtonSmall title={tr('vector.zoomIn')} aria-label={tr('vector.zoomIn')} onClick={()=>setZoom(z=>Math.min(3,z*1.25))}><ZoomIn/></ButtonSmall>
+            <ButtonSmall title={tr('vector.resetView')} aria-label={tr('vector.resetView')} onClick={()=>{setZoom(1);setPan({x:0,y:0});}}><RotateCcw/></ButtonSmall>
           </div></div>
         <div className="vs-canvas-wrap">
-          <svg ref={stage} className="vs-canvas" viewBox={'0 0 '+project.width+' '+project.height} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onPointerDown={e=>{if(e.target===e.currentTarget)setSelected('');}} aria-label="Editable SVG drawing canvas">
+          <svg ref={stage} className="vs-canvas" viewBox={'0 0 '+project.width+' '+project.height} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onPointerDown={e=>{if(e.target===e.currentTarget)setSelected('');}} aria-label={tr('vector.canvas')}>
             <g transform={'translate('+pan.x+' '+pan.y+') scale('+zoom+')'}>
               {showGrid?<defs><pattern id="vs-grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="currentColor" opacity=".10" strokeWidth="1"/></pattern></defs>:null}
               {showGrid?<rect width={project.width} height={project.height} fill="url(#vs-grid)" pointerEvents="none"/>:null}
@@ -231,18 +233,18 @@ export default function VectorWorkspace() {
             </g>
           </svg>
         </div>
-        <div className="vs-status border-t border-border">{message||'Ready'} <span className="ml-auto">Native text-to-cad theme · SVG composition</span></div>
+        <div className="vs-status border-t border-border">{message||tr('vector.ready')} <span className="ml-auto">{tr('vector.themeNote')}</span></div>
       </section>
       <aside className="vs-right border-l border-border bg-sidebar">
-        <div className="vs-inspector-title"><Layers className="size-4"/> Properties</div>
+        <div className="vs-inspector-title"><Layers className="size-4"/> {tr('vector.properties')}</div>
         {selectedItem?<div className="vs-properties">
-          <label>Component name<input value={selectedItem.name} onChange={e=>change({name:e.target.value})}/></label>
-          <div className="vs-fields">{(['x','y','w','h','rotate','opacity'] as const).map(k=><label key={k}>{k==='rotate'?'Rotation':k==='opacity'?'Opacity':k.toUpperCase()}<input type="number" step={k==='opacity'?.05:1} min={k==='opacity'?0:undefined} max={k==='opacity'?1:undefined} value={selectedItem[k]} onChange={e=>change({[k]:Number(e.target.value)})}/></label>)}</div>
-          <div className="vs-properties-actions"><Button size="sm" variant="outline" onClick={()=>{const idx=project.items.findIndex(i=>i.id===selected);if(idx<project.items.length-1)commit(p=>({...p,items:[...p.items.slice(0,idx),...p.items.slice(idx+1,idx+2),p.items[idx],...p.items.slice(idx+2)]}));}}><ChevronUp/> Forward</Button>
-          <Button size="sm" variant="outline" onClick={()=>{const idx=project.items.findIndex(i=>i.id===selected);if(idx>0)commit(p=>{const a=[...p.items];[a[idx-1],a[idx]]=[a[idx],a[idx-1]];return {...p,items:a};});}}><ChevronDown/> Backward</Button></div>
-          <p className="vs-muted">SVG paths remain vector data in the export. CAD geometry is unchanged.</p>
-        </div>:<div className="vs-properties"><p className="vs-muted">Select a component to change its position, size, rotation, opacity or stacking order.</p></div>}
-        <div className="vs-inspector-title border-t border-border">Workflow</div><div className="vs-properties"><p className="vs-muted">CAD and Vector modes are independent. Generate STEP / XBF / GLB through the original CAD workflow; import projected SVGs into this workspace to arrange facilities or equipment.</p><p className="vs-muted">Projects use a versioned JSON schema. The extracted asset library stays local to your fork.</p></div>
+          <label>{tr('vector.componentName')}<input value={selectedItem.name} onChange={e=>change({name:e.target.value})}/></label>
+          <div className="vs-fields">{(['x','y','w','h','rotate','opacity'] as const).map(k=><label key={k}>{k==='rotate'?tr('vector.rotation'):k==='opacity'?tr('vector.opacity'):k.toUpperCase()}<input type="number" step={k==='opacity'?.05:1} min={k==='opacity'?0:undefined} max={k==='opacity'?1:undefined} value={selectedItem[k]} onChange={e=>change({[k]:Number(e.target.value)})}/></label>)}</div>
+          <div className="vs-properties-actions"><Button size="sm" variant="outline" onClick={()=>{const idx=project.items.findIndex(i=>i.id===selected);if(idx<project.items.length-1)commit(p=>({...p,items:[...p.items.slice(0,idx),...p.items.slice(idx+1,idx+2),p.items[idx],...p.items.slice(idx+2)]}));}}><ChevronUp/> {tr('vector.forward')}</Button>
+          <Button size="sm" variant="outline" onClick={()=>{const idx=project.items.findIndex(i=>i.id===selected);if(idx>0)commit(p=>{const a=[...p.items];[a[idx-1],a[idx]]=[a[idx],a[idx-1]];return {...p,items:a};});}}><ChevronDown/> {tr('vector.backward')}</Button></div>
+          <p className="vs-muted">{tr('vector.vectorNote')}</p>
+        </div>:<div className="vs-properties"><p className="vs-muted">{tr('vector.emptySelect')}</p></div>}
+        <div className="vs-inspector-title border-t border-border">{tr('vector.workflow')}</div><div className="vs-properties"><p className="vs-muted">{tr('vector.cadIndependent')}</p><p className="vs-muted">{tr('vector.projectNote')}</p></div>
       </aside>
     </div>
   </div>;
