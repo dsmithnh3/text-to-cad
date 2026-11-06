@@ -175,9 +175,9 @@ build123d/Open CASCADE, Node test runner, JSDOM, existing shell/Python CI runner
 - Consumes: Task 1 validation semantics.
 - Produces: exported schema + fixtures that Python (Task 6) must conform to.
 
-- [ ] Add failing conformance fixture tests in core/web.
-- [ ] Extract schema/constants without changing M0 budgets.
-- [ ] Run focused core + web tests; commit.
+- [x] Add failing conformance fixture tests in core/web.
+- [x] Extract schema/constants without changing M0 budgets.
+- [x] Run focused core + web tests; commit.
 
 ---
 
@@ -325,10 +325,24 @@ build123d/Open CASCADE, Node test runner, JSDOM, existing shell/Python CI runner
 **Interfaces:**
 - Produces: release-ready evidence; final embedded Codex gate still green if Task 9 code moved.
 
-- [ ] Perf/recovery checks for large-but-in-budget projects.
-- [ ] Security docs reflect budgets + sanitization + MCP truthfulness.
-- [ ] Packaging and docs site copy stay in step with README laws.
-- [ ] Final completion checklist: Milestones 0–6 gates, including embedded Codex.
+- [x] Perf/recovery checks for large-but-in-budget projects.
+  - Exact aggregate-limit parse (`vectorProject` accepts at budget, rejects limit+1).
+  - Draft restore / quota / over-budget rejection (`vectorDraft`).
+  - History cap at `MAX_HISTORY` (`vectorState`).
+- [x] Security docs reflect budgets + sanitization + MCP truthfulness.
+  - `docs/unified-cad-vector-studio.md` lists exact budgets, SVG sanitization, MCP tool catalog,
+    and the document-id-only regenerate limitation.
+  - Skills `cad-to-isometric-svg`, `refrigeration-equipment`, `cold-room-vector-layout` aligned.
+- [x] Packaging and docs site copy stay in step with README laws.
+  - No VERSION bump; Vector remains a development feature (not advertised on README / docs
+    homepage install surfaces). Install command + `docs/install.md` link still match
+    `apps/docs/src/lib/content.ts`.
+- [x] Final completion checklist: Milestones 0–6 gates, including embedded Codex.
+  - M0–M5: Tasks 1–13 done (tips through `c74a04e5`).
+  - M3 embedded Codex: Task 9 gate (`dfe85363`); Vector surface remains in `@cad/ui` + MCP
+    `VectorView`; focused MCP/UI suites re-verified under Task 14.
+  - M6 release gate: `bundle.sh --check` + focused JS/Python + browser smoke (evidence below).
+  - Push / publish / PR remain authorization-gated.
 
 ---
 
