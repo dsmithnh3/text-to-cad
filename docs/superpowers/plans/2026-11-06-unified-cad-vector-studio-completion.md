@@ -227,8 +227,8 @@ build123d/Open CASCADE, Node test runner, JSDOM, existing shell/Python CI runner
 - Consumes: durable store (Task 7).
 - Produces: immutable component revisions for MCP/UI (Task 9).
 
-- [ ] Failing immutability / lookup tests.
-- [ ] Implement catalog; commit.
+- [x] Failing immutability / lookup tests.
+- [x] Implement catalog; commit.
 
 ---
 
