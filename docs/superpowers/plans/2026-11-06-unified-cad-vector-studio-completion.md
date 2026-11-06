@@ -184,17 +184,19 @@ build123d/Open CASCADE, Node test runner, JSDOM, existing shell/Python CI runner
 ### Task 6: Python project parser conformance
 
 **Files:**
-- Create: Python parser/validator mirroring Task 5 fixtures
-- Create: Python tests that load the same fixtures
-- Modify: CI selection if a new path kind is introduced
+- Create: `packages/cad/src/cad/vector_project.py` (`parse_vector_project`)
+- Create: `tests/python/packages/cad/test_vector_project_conformance.py`
+- Fixture (Task 5, unchanged): `packages/core/src/lib/vectorProject.conformance.json`
+- Modify: CI selection if a new path kind is introduced (not required: `packages/cad/**` and
+  `tests/python/packages/**` already select cadgen; `packages/core/**` already selects everything)
 
 **Interfaces:**
 - Consumes: JSON fixtures from Task 5.
 - Produces: Python `parse_vector_project` (name exact in implementation) that rejects before write.
 
-- [ ] Add failing fixture-driven Python tests.
-- [ ] Implement parser; reject over-budget / non-finite input.
-- [ ] Run focused global/package tests; commit.
+- [x] Add failing fixture-driven Python tests.
+- [x] Implement parser; reject over-budget / non-finite input.
+- [x] Run focused global/package tests; commit.
 
 ---
 
