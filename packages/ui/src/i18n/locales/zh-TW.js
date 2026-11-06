@@ -4,6 +4,11 @@
  * character conversion of `zh-CN.js`. Every key here is also in `en.js` (the parity test).
  */
 export default {
+  "vector.sourceEditor": "編輯 SVG 原始碼",
+  "vector.sourceHint": "僅修改此實例。變更會建立獨立的向量元件，原始素材保持不變。",
+  "vector.applySource": "套用 SVG 變更",
+  "vector.sourceSaved": "已儲存編輯後的 SVG 元件",
+  "vector.sourceFailed": "無法套用 SVG 變更",
   // Vector Studio workspace, aligned with the existing viewer's locale keys.
   "vector.workspaceModes": "工作區模式",
   "vector.workspaceTitle": "向量工作室",
