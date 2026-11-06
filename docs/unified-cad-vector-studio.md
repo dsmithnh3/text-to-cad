@@ -53,8 +53,8 @@ The importer writes the SVG files into \`apps/web/src/vector/assets/\`, intentio
 | SVG scene composition and editable export | Implemented |
 | Layers, ordering, selection, transforms | Implemented |
 | JSON project save/load, undo/redo | Implemented |
-| Experimental GLB->SVG | Native browser import; illustrative mesh projection |
-| True CAD->SVG feature topology and hidden-line projection | Not implemented |
+| Experimental GLB->SVG | Native browser import; illustrative mesh projection (labeled) |
+| True CAD->SVG feature topology and hidden-line projection | Orthographic + isometric OCCT HLR export; immutable projection asset revisions (`/api/v1/vector/projections`) |
 | Shared assembly graph / parametric round-trip | Not implemented |
 | Server-side vector project database | Durable UUID/revision store (`/api/v1/vector/projects`); client drafts remain overlay |
 | Immutable component catalog | Publish-once revisions under `/api/v1/vector/catalog`; MCP/UI consume by revision id |

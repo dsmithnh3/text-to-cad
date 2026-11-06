@@ -295,8 +295,8 @@ build123d/Open CASCADE, Node test runner, JSDOM, existing shell/Python CI runner
 - Consumes: CAD export/document APIs; Task 7 asset revisions.
 - Produces: projection export consumed by Task 13 regeneration.
 
-- [ ] Failing provenance / view tests.
-- [ ] Implement orthographic + isometric export path; commit.
+- [x] Failing provenance / view tests.
+- [x] Implement orthographic + isometric export path; commit.
 
 ---
 

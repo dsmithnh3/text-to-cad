@@ -2,6 +2,10 @@
  * Preview-oriented GLB -> SVG projection using the same 'three' dependency
  * already used by the upstream CAD viewer. This produces editable SVG polygon
  * paths but is not a CAD-accurate HLR/vector engineering export.
+ *
+ * CAD-accurate orthographic/isometric projections live on the server
+ * (`/api/v1/vector/projections`, OCCT hidden-line) and must stay labeled
+ * distinctly from this illustrative mesh path.
  */
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { Color, LoadingManager, Mesh, Vector3 } from 'three';

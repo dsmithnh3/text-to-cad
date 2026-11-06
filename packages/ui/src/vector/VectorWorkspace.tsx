@@ -325,8 +325,8 @@ export default function VectorWorkspace({
       const svg = await projectGLB(file);
       const asset: Asset = {
         id: id(),
-        name: file.name.replace(/\.glb$/i, '') + ' · isometric',
-        category: 'CAD projection',
+        name: file.name.replace(/\.glb$/i, '') + ' · isometric (illustrative)',
+        category: 'CAD projection · illustrative',
         svg: sanitizeSvg(svg),
         provenance: 'user-import',
       };
@@ -345,7 +345,7 @@ export default function VectorWorkspace({
       };
       commit((p) => ({ ...p, assets: [...p.assets, asset], items: [...p.items, node] }));
       setSelected(node.id);
-      setMessage('GLB projected into editable SVG polygons; verify visibility and scale');
+      setMessage('Illustrative GLB mesh projection (not CAD hidden-line); verify visibility and scale');
     } catch (e) {
       setMessage('GLB projection failed: ' + String(e));
     }

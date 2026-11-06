@@ -29,7 +29,9 @@ src/cad_server/
                          #   payload (drawings), a robot's (robots), Quick Edit's packets
                          #   (prompt_files), durable Vector Studio UUID/revision projects
                          #   (vector_projects: /api/v1/vector/projects), immutable component
-                         #   catalog (vector_catalog: /api/v1/vector/catalog)
+                         #   catalog (vector_catalog: /api/v1/vector/catalog), CAD-accurate
+                         #   orthographic/isometric projection asset revisions
+                         #   (vector_projections: /api/v1/vector/projections)
   mcp/                   # the engine's MCP endpoint: its JSON-RPC vocabulary (protocol),
                          #   engine sessions (http), tools and launches (server), the agent
                          #   operations (operations), how a host presents CAD (host), open

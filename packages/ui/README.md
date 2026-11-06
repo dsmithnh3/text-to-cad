@@ -86,7 +86,9 @@ src/
   library/           a host's home: the models opened before, to open again, and their pictures
   vector/            Vector Studio surface (`@cad/ui/vector`): workspace UI, drafts, durable
                      project/catalog clients, structured SVG AST (editable vs opaque) and
-                     structured editor controls; hosts inject storage and transports
+                     structured editor controls; illustrative GLB mesh projection stays
+                     labeled apart from server CAD-accurate HLR projections; hosts inject
+                     storage and transports
   renderers/
     kit/            the frame every viewer file shares: viewport, tools, panels, Display settings, status
     xbf/            an engine document (.xbf) and a STEP: model tree, Position
