@@ -12,7 +12,9 @@ from cad_server.viewer.vector_projections import (
     VectorProjectionImmutable,
     VectorProjectionInvalid,
     VectorProjectionNotFound,
+    VectorProjectionStaleRevision,
     VectorProjectionStore,
+    export_file_projection,
 )
 from .test_http_layer import ServerFixture
 
@@ -21,6 +23,13 @@ def _box():
     from build123d import Align, Box
 
     return Box(40, 30, 10, align=(Align.CENTER, Align.CENTER, Align.MIN))
+
+
+def _write_step(path: Path):
+    from build123d import export_step
+
+    export_step(_box(), str(path))
+    return path
 
 
 def sample_payload(**overrides):
@@ -112,6 +121,61 @@ class VectorProjectionStoreTests(unittest.TestCase):
         with self.assertRaises(VectorProjectionNotFound):
             self.store.get("00000000-0000-4000-8000-000000000000")
 
+    def test_regenerate_creates_new_immutable_revision_from_provenance(self) -> None:
+        step = _write_step(Path(self.tmp.name) / "box.step")
+        first = export_file_projection(step, "front", store=self.store, name="Box · front")
+        prior_path = (
+            Path(self.tmp.name)
+            / "vector-projections"
+            / first["revisionId"]
+            / "revision.json"
+        )
+        before = prior_path.read_bytes()
+
+        second = self.store.regenerate(first["revisionId"], expected_revision=1)
+        self.assertEqual(second["assetId"], first["assetId"])
+        self.assertEqual(second["revision"], 2)
+        self.assertNotEqual(second["revisionId"], first["revisionId"])
+        self.assertEqual(second["projection"]["view"], "front")
+        self.assertEqual(second["projection"]["kind"], KIND)
+        self.assertEqual(second["projection"]["source"]["path"], str(step.resolve()))
+        self.assertEqual(prior_path.read_bytes(), before)
+        self.assertEqual(self.store.get(first["revisionId"])["revision"], 1)
+        self.assertIn("CAD-accurate OCCT hidden-line projection", second["asset"]["svg"])
+
+    def test_regenerate_enforces_expected_revision(self) -> None:
+        step = _write_step(Path(self.tmp.name) / "box.step")
+        first = export_file_projection(step, "iso", store=self.store)
+        self.store.regenerate(first["revisionId"], expected_revision=1)
+        with self.assertRaises(VectorProjectionStaleRevision) as raised:
+            self.store.regenerate(first["revisionId"], expected_revision=1)
+        self.assertEqual(raised.exception.expected, 1)
+        self.assertEqual(raised.exception.current, 2)
+        tip = max(
+            entry["revision"]
+            for entry in self.store.list()
+            if entry["assetId"] == first["assetId"]
+        )
+        self.assertEqual(tip, 2)
+
+    def test_regenerate_rejects_missing_source_path(self) -> None:
+        published = self.store.publish(
+            {
+                "name": "doc-only",
+                "svg": project_shape_to_svg(_box(), "front", document_id="doc-1").svg,
+                "projection": {
+                    "kind": KIND,
+                    "backend": "hlr-occt",
+                    "view": "front",
+                    "viewClass": "orthographic",
+                    "hiddenLines": True,
+                    "source": {"documentId": "doc-1"},
+                },
+            },
+        )
+        with self.assertRaises(VectorProjectionInvalid):
+            self.store.regenerate(published["revisionId"], expected_revision=1)
+
 
 class VectorProjectionRouteTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -175,6 +239,34 @@ class VectorProjectionRouteTests(unittest.TestCase):
         self.assertEqual(status, 400)
         self.assertIn("illustrative", body["error"].lower())
         self.assertFalse((self.root / "vector-projections").exists())
+
+    def test_http_regenerate_creates_revision_and_enforces_expected(self) -> None:
+        step = _write_step(self.root / "box.step")
+        status, first = self._json(
+            "POST",
+            "/api/v1/vector/projections",
+            {"file": str(step), "view": "front", "name": "Box · front"},
+        )
+        self.assertEqual(status, 201)
+        revision_id = first["revisionId"]
+
+        status, second = self._json(
+            "POST",
+            f"/api/v1/vector/projections/{revision_id}/regenerate",
+            {"expectedRevision": 1},
+        )
+        self.assertEqual(status, 201)
+        self.assertEqual(second["revision"], 2)
+        self.assertEqual(second["assetId"], first["assetId"])
+        self.assertNotEqual(second["revisionId"], revision_id)
+
+        status, stale = self._json(
+            "POST",
+            f"/api/v1/vector/projections/{revision_id}/regenerate",
+            {"expectedRevision": 1},
+        )
+        self.assertEqual(status, 409)
+        self.assertEqual(stale["currentRevision"], 2)
 
 
 if __name__ == "__main__":

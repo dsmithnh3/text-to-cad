@@ -1,8 +1,10 @@
-"""Typed Vector Studio MCP tools: durable projects and immutable catalog.
+"""Typed Vector Studio MCP tools: durable projects, catalog, and CAD projections.
 
 Mutations require ``expectedRevision``. Catalog components are looked up by
-``revisionId`` only; there is no catalog update tool. Tools call the viewer
-stores directly (same process as the engine), not HTTP.
+``revisionId`` only; there is no catalog update tool. Projection regeneration
+reads provenance and publishes a new immutable asset revision when the lineage
+tip matches. Tools call the viewer stores directly (same process as the engine),
+not HTTP.
 """
 
 from __future__ import annotations
@@ -14,6 +16,14 @@ from cad_server.viewer.vector_catalog import (
     VectorCatalogInvalid,
     VectorCatalogNotFound,
     VectorCatalogStore,
+)
+from cad_server.viewer.vector_projections import (
+    VectorProjectionImmutable,
+    VectorProjectionInvalid,
+    VectorProjectionNotFound,
+    VectorProjectionStaleRevision,
+    VectorProjectionStore,
+    export_file_projection,
 )
 from cad_server.viewer.vector_projects import (
     VectorProjectInvalid,
@@ -52,7 +62,7 @@ _REVISION = {
 _REVISION_ID = {
     "type": "string",
     "minLength": 1,
-    "description": "Immutable catalog revision id published by vector_catalog_publish.",
+    "description": "Immutable catalog or projection revision id.",
 }
 _COMPONENT = {
     "type": "object",
@@ -66,6 +76,17 @@ _COMPONENT = {
     "required": ["name", "category", "svg", "provenance"],
     "additionalProperties": False,
 }
+_PROJECTION_EXPORT = {
+    "type": "object",
+    "description": "CAD-accurate projection export: name, svg, projection provenance.",
+    "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "svg": {"type": "string"},
+        "projection": {"type": "object"},
+    },
+    "required": ["name", "svg", "projection"],
+    "additionalProperties": False,
+}
 
 VECTOR_TOOLS = (
     "vector_project_create",
@@ -74,6 +95,10 @@ VECTOR_TOOLS = (
     "vector_catalog_publish",
     "vector_catalog_get",
     "vector_catalog_list",
+    "vector_projection_publish",
+    "vector_projection_get",
+    "vector_projection_list",
+    "vector_projection_regenerate",
 )
 
 
@@ -142,6 +167,73 @@ def catalog() -> list[dict[str, Any]]:
             "inputSchema": _object(),
             "annotations": _READ_ONLY,
         },
+        {
+            "name": "vector_projection_publish",
+            "title": "Publish CAD projection asset",
+            "description": (
+                "Publish a CAD-accurate orthographic or isometric projection as an immutable asset "
+                "revision. Pass export={name,svg,projection} from a library export, or file+view to "
+                "project a local STEP/XBF. Optional assetId advances that lineage's revision counter. "
+                "Illustrative mesh provenance is rejected."
+            ),
+            "inputSchema": _object(
+                {
+                    "export": _PROJECTION_EXPORT,
+                    "file": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Absolute path to a .step/.stp/.xbf file.",
+                    },
+                    "view": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Projection view: top/bottom/front/back/left/right/iso.",
+                    },
+                    "hiddenLines": {"type": "boolean", "description": "Include hidden edges (default true)."},
+                    "name": {"type": "string", "minLength": 1},
+                    "documentId": {"type": "string", "minLength": 1},
+                    "documentRevision": {"type": "string", "minLength": 1},
+                    "assetId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Optional asset lineage id to advance.",
+                    },
+                },
+            ),
+            "annotations": _MUTATING,
+        },
+        {
+            "name": "vector_projection_get",
+            "title": "Get CAD projection revision",
+            "description": "Look up an immutable CAD projection asset by revisionId.",
+            "inputSchema": _object({"revisionId": _REVISION_ID}, ["revisionId"]),
+            "annotations": _READ_ONLY,
+        },
+        {
+            "name": "vector_projection_list",
+            "title": "List CAD projection revisions",
+            "description": "List published CAD-accurate projection asset revisions.",
+            "inputSchema": _object(),
+            "annotations": _READ_ONLY,
+        },
+        {
+            "name": "vector_projection_regenerate",
+            "title": "Regenerate CAD projection",
+            "description": (
+                "Rebuild a CAD-accurate projection from a prior revision's provenance and publish a "
+                "new immutable asset revision on the same lineage. expectedRevision must match the "
+                "lineage tip; a stale tip returns currentRevision. Requires provenance.source.path."
+            ),
+            "inputSchema": _object(
+                {
+                    "revisionId": _REVISION_ID,
+                    "expectedRevision": _REVISION,
+                    "name": {"type": "string", "minLength": 1, "description": "Optional replacement asset name."},
+                },
+                ["revisionId", "expectedRevision"],
+            ),
+            "annotations": _MUTATING,
+        },
     ]
 
 
@@ -161,12 +253,17 @@ def _catalog(store: VectorCatalogStore | None) -> VectorCatalogStore:
     return store if store is not None else VectorCatalogStore()
 
 
+def _projections(store: VectorProjectionStore | None) -> VectorProjectionStore:
+    return store if store is not None else VectorProjectionStore()
+
+
 def handle(
     name: str,
     arguments: dict[str, Any],
     *,
     projects: VectorProjectStore | None = None,
     catalog_store: VectorCatalogStore | None = None,
+    projections: VectorProjectionStore | None = None,
 ) -> dict[str, Any]:
     """Dispatch a Vector tool. Raises ``VectorToolError`` for agent-visible failures."""
     if name == "vector_project_create":
@@ -212,4 +309,89 @@ def handle(
     if name == "vector_catalog_list":
         return {"entries": _catalog(catalog_store).list()}
 
+    if name == "vector_projection_publish":
+        return _publish_projection(arguments, projections=_projections(projections))
+
+    if name == "vector_projection_get":
+        try:
+            return _projections(projections).get(arguments.get("revisionId"))
+        except VectorProjectionNotFound as error:
+            raise VectorToolError(str(error)) from error
+
+    if name == "vector_projection_list":
+        return {"entries": _projections(projections).list()}
+
+    if name == "vector_projection_regenerate":
+        expected = arguments.get("expectedRevision")
+        if not isinstance(expected, int) or isinstance(expected, bool) or expected < 1:
+            raise VectorToolError("expectedRevision must be a positive integer")
+        try:
+            return _projections(projections).regenerate(
+                arguments.get("revisionId"),
+                expected,
+                name=arguments.get("name"),
+            )
+        except VectorProjectionInvalid as error:
+            raise VectorToolError(str(error)) from error
+        except VectorProjectionNotFound as error:
+            raise VectorToolError(str(error)) from error
+        except VectorProjectionStaleRevision as error:
+            raise VectorToolError(str(error), structured={"currentRevision": error.current}) from error
+
     raise VectorToolError(f"unknown Vector tool {name!r}")
+
+
+def _publish_projection(
+    arguments: dict[str, Any],
+    *,
+    projections: VectorProjectionStore,
+) -> dict[str, Any]:
+    export = arguments.get("export")
+    file_ref = arguments.get("file")
+    asset_id = arguments.get("assetId")
+    try:
+        if export is not None:
+            allowed = {"export", "assetId"}
+            if not set(arguments) <= allowed:
+                raise VectorToolError(
+                    'vector_projection_publish with export accepts only export and optional assetId',
+                )
+            return projections.publish(export, asset_id=asset_id)
+        if isinstance(file_ref, str) and file_ref:
+            allowed = {
+                "file",
+                "view",
+                "hiddenLines",
+                "name",
+                "documentId",
+                "documentRevision",
+                "assetId",
+            }
+            if not set(arguments) <= allowed:
+                raise VectorToolError(
+                    "vector_projection_publish with file accepts file, view, and optional "
+                    "hiddenLines, name, documentId, documentRevision, assetId",
+                )
+            view = arguments.get("view")
+            if not isinstance(view, str) or not view:
+                raise VectorToolError("view must be a non-empty string")
+            hidden = arguments.get("hiddenLines", True)
+            if not isinstance(hidden, bool):
+                raise VectorToolError("hiddenLines must be a boolean")
+            return export_file_projection(
+                file_ref,
+                view,
+                hidden_lines=hidden,
+                document_id=arguments.get("documentId"),
+                document_revision=arguments.get("documentRevision"),
+                name=arguments.get("name"),
+                store=projections,
+                asset_id=asset_id,
+            )
+        raise VectorToolError(
+            "vector_projection_publish requires export={...} or file+view",
+        )
+    except VectorProjectionInvalid as error:
+        raise VectorToolError(str(error)) from error
+    except VectorProjectionImmutable as error:
+        raise VectorToolError(str(error)) from error

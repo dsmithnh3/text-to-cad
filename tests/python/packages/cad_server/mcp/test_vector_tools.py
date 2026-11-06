@@ -16,6 +16,7 @@ from cad_server.mcp.ui import AppPage
 from cad_server.mcp.vector import VECTOR_TOOLS, catalog
 from cad_server.viewer.recents import RecentStore
 from cad_server.viewer.vector_catalog import VectorCatalogStore
+from cad_server.viewer.vector_projections import VectorProjectionStore
 from cad_server.viewer.vector_projects import VectorProjectStore
 
 
@@ -77,6 +78,7 @@ class VectorToolsTest(unittest.TestCase):
         self.server.vector_projects  # bind stores under CAD_STATE_DIR
         self.server._vector_projects = VectorProjectStore(self.state / "vector-projects")
         self.server._vector_catalog = VectorCatalogStore(self.state / "vector-catalog")
+        self.server._vector_projections = VectorProjectionStore(self.state / "vector-projections")
         self.server.handle(
             "initialize",
             initialize_params({**CODEX, "capabilities": RENDERS_APPS}),
@@ -171,6 +173,46 @@ class VectorToolsTest(unittest.TestCase):
         self.assertNotEqual(second["structuredContent"]["revisionId"], revision_id)
         still = self.call("vector_catalog_get", {"revisionId": revision_id})
         self.assertEqual(still["structuredContent"]["component"]["name"], "Valve")
+
+    def test_projection_regenerate_creates_revision_and_enforces_expected(self) -> None:
+        from build123d import Align, Box, export_step
+
+        step = self.state / "box.step"
+        export_step(Box(40, 30, 10, align=(Align.CENTER, Align.CENTER, Align.MIN)), str(step))
+        published = self.call(
+            "vector_projection_publish",
+            {"file": str(step), "view": "front", "name": "Box · front"},
+        )
+        self.assertFalse(published.get("isError"), published)
+        first = published["structuredContent"]
+        self.assertEqual(first["revision"], 1)
+
+        regenerated = self.call(
+            "vector_projection_regenerate",
+            {"revisionId": first["revisionId"], "expectedRevision": 1},
+        )
+        self.assertFalse(regenerated.get("isError"), regenerated)
+        second = regenerated["structuredContent"]
+        self.assertEqual(second["revision"], 2)
+        self.assertEqual(second["assetId"], first["assetId"])
+        self.assertNotEqual(second["revisionId"], first["revisionId"])
+        prior = self.call("vector_projection_get", {"revisionId": first["revisionId"]})
+        self.assertEqual(prior["structuredContent"]["revision"], 1)
+
+        stale = self.call(
+            "vector_projection_regenerate",
+            {"revisionId": first["revisionId"], "expectedRevision": 1},
+        )
+        self.assertTrue(stale.get("isError"))
+        self.assertEqual(stale["structuredContent"]["currentRevision"], 2)
+
+        listed = self.call("vector_projection_list")
+        self.assertEqual(len(listed["structuredContent"]["entries"]), 2)
+
+        regen = next(
+            tool for tool in catalog() if tool["name"] == "vector_projection_regenerate"
+        )
+        self.assertIn("expectedRevision", regen["inputSchema"]["required"])
 
 
 if __name__ == "__main__":

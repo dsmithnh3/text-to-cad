@@ -310,8 +310,8 @@ build123d/Open CASCADE, Node test runner, JSDOM, existing shell/Python CI runner
 - Consumes: Task 12 projection export; Task 9 MCP operations.
 - Produces: regeneration command path.
 
-- [ ] Failing regeneration tests.
-- [ ] Implement; focused tests; commit.
+- [x] Failing regeneration tests.
+- [x] Implement; focused tests; commit.
 
 ---
 

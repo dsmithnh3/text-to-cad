@@ -113,8 +113,10 @@ INSTRUCTIONS = (
     "Only when cad_show reports no open viewer, call cad_open, once. "
     "Viewers follow every rebuild of a model and every save of a file, so never reopen after a rebuild. "
     "cad_view reports what the user is looking at and has selected; cad_screenshot returns what they see. "
-    "Vector Studio projects use vector_project_create/get/update (expectedRevision on every update) and "
-    "immutable catalog components via vector_catalog_publish/get/list (look up by revisionId)."
+    "Vector Studio projects use vector_project_create/get/update (expectedRevision on every update), "
+    "immutable catalog components via vector_catalog_publish/get/list (look up by revisionId), and "
+    "CAD-accurate projections via vector_projection_publish/get/list/regenerate "
+    "(expectedRevision on regenerate)."
 )
 
 INLINE_INSTRUCTIONS = (
@@ -280,6 +282,7 @@ class Server:
         self._sidebar_views = sidebar_views
         self._vector_projects = None
         self._vector_catalog = None
+        self._vector_projections = None
         self._model: str | None = None  # what this thread last opened or showed
         self._tools: list[dict[str, Any]] | None = None
         from .operations import Operations
@@ -345,6 +348,15 @@ class Server:
 
             self._vector_catalog = VectorCatalogStore()
         return self._vector_catalog
+
+    @property
+    def vector_projections(self):
+        """Immutable CAD projection asset revisions (``viewer.vector_projections``)."""
+        if self._vector_projections is None:
+            from cad_server.viewer.vector_projections import VectorProjectionStore
+
+            self._vector_projections = VectorProjectionStore()
+        return self._vector_projections
 
     @property
     def sidebar_views(self):
@@ -677,7 +689,7 @@ class Server:
         return _text(json.dumps(result), result, error=result["state"] in ("failed", "rejected"))
 
     def _vector_tool(self, name, arguments):
-        """Typed Vector Studio tools: durable projects and immutable catalog revisions."""
+        """Typed Vector Studio tools: projects, catalog, and CAD projection regeneration."""
         from .vector import handle as vector_handle
 
         result = vector_handle(
@@ -685,6 +697,7 @@ class Server:
             arguments,
             projects=self.vector_projects,
             catalog_store=self.vector_catalog,
+            projections=self.vector_projections,
         )
         return _text(json.dumps(result, ensure_ascii=False), result)
 

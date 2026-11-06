@@ -1,8 +1,8 @@
 """Immutable CAD-accurate projection asset revisions.
 
 Each successful orthographic or isometric export publishes a new revision id.
-Prior revisions are never rewritten; Task 13 regenerates by reading provenance
-and publishing another revision on the same asset lineage.
+Prior revisions are never rewritten; regeneration reads provenance and publishes
+another revision on the same asset lineage when ``expectedRevision`` matches tip.
 """
 
 from __future__ import annotations
@@ -32,9 +32,11 @@ __all__ = [
     "VectorProjectionImmutable",
     "VectorProjectionInvalid",
     "VectorProjectionNotFound",
+    "VectorProjectionStaleRevision",
     "VectorProjectionStore",
     "VectorProjectionStoreError",
     "export_file_projection",
+    "reproject_from_provenance",
 ]
 
 FOLDER = "vector-projections"
@@ -58,6 +60,15 @@ class VectorProjectionNotFound(VectorProjectionStoreError):
 
 class VectorProjectionImmutable(VectorProjectionStoreError):
     """A published revision cannot be overwritten."""
+
+
+class VectorProjectionStaleRevision(VectorProjectionStoreError):
+    """Regeneration expected a lineage tip that is no longer current."""
+
+    def __init__(self, *, expected: int, current: int) -> None:
+        super().__init__(f"expected revision {expected}, current is {current}")
+        self.expected = expected
+        self.current = current
 
 
 def _require_name(name: Any) -> str:
@@ -156,6 +167,47 @@ class VectorProjectionStore:
             asset_id=asset_id,
         )
 
+    def regenerate(
+        self,
+        revision_id: str,
+        expected_revision: int,
+        *,
+        name: str | None = None,
+    ) -> dict[str, Any]:
+        """Re-project from a revision's provenance; publish a new immutable tip.
+
+        ``expected_revision`` must match the asset lineage's current highest
+        revision. Prior revisions are never rewritten. Requires
+        ``provenance.source.path`` (STEP/XBF) so the shape can be reloaded.
+        """
+        if not isinstance(expected_revision, int) or isinstance(expected_revision, bool) or expected_revision < 1:
+            raise VectorProjectionInvalid("expectedRevision must be a positive integer")
+        prior = self.get(revision_id)
+        export = reproject_from_provenance(prior["projection"])
+        label = name if name is not None else prior["asset"]["name"]
+        asset_id = prior["assetId"]
+        asset_body, projection, _ = _validate_publish_payload(
+            {
+                "name": label,
+                "svg": export.svg,
+                "projection": export.provenance,
+            },
+        )
+        new_revision_id = str(uuid.uuid4())
+        with self._lock:
+            tip = self._highest_revision_unlocked(asset_id)
+            if tip != expected_revision:
+                raise VectorProjectionStaleRevision(expected=expected_revision, current=tip)
+            entry = {
+                "revisionId": new_revision_id,
+                "assetId": asset_id,
+                "revision": tip + 1,
+                "asset": {**asset_body, "id": new_revision_id},
+                "projection": projection,
+            }
+            self._write_unlocked(new_revision_id, entry)
+            return entry
+
     def get(self, revision_id: str) -> dict[str, Any]:
         """Return a published revision, or raise ``VectorProjectionNotFound``."""
         if not isinstance(revision_id, str) or not is_id(revision_id):
@@ -178,12 +230,15 @@ class VectorProjectionStore:
                 entries.append(entry)
         return entries
 
-    def _next_revision(self, asset_id: str) -> int:
+    def _highest_revision_unlocked(self, asset_id: str) -> int:
         highest = 0
         for entry in self.list():
             if entry["assetId"] == asset_id:
                 highest = max(highest, entry["revision"])
-        return highest + 1
+        return highest
+
+    def _next_revision(self, asset_id: str) -> int:
+        return self._highest_revision_unlocked(asset_id) + 1
 
     def _folder(self, revision_id: str) -> Path:
         return self.root / revision_id
@@ -242,6 +297,54 @@ class VectorProjectionStore:
             write_bytes_atomic(path, payload)
 
 
+def _load_shape_from_path(file_path: Path) -> Any:
+    if not file_path.is_file():
+        raise VectorProjectionInvalid(f"no CAD file at {file_path}")
+    suffix = file_path.suffix.lower()
+    if suffix in _STEP_SUFFIXES:
+        from cad.engine.document import read_step_shape
+
+        return read_step_shape(file_path)
+    if suffix in _XBF_SUFFIXES:
+        from cad.engine.document import read_xbf_shape
+
+        return read_xbf_shape(file_path)
+    raise VectorProjectionInvalid(
+        "CAD projection reads a .step/.stp or .xbf file",
+    )
+
+
+def reproject_from_provenance(provenance: Any) -> CadProjectionExport:
+    """Rebuild a CAD-accurate SVG from stored projection provenance.
+
+    Requires ``source.path`` pointing at a readable STEP/XBF. Document-id-only
+    provenance cannot be regenerated until a document resolver is wired.
+    """
+    try:
+        projection = parse_projection_provenance(provenance)
+    except CadProjectionError as error:
+        raise VectorProjectionInvalid(str(error)) from error
+    source = projection["source"]
+    path = source.get("path")
+    if not isinstance(path, str) or not path:
+        raise VectorProjectionInvalid(
+            "regeneration requires provenance.source.path (document-only sources are not resolvable)",
+        )
+    file_path = Path(path)
+    shape = _load_shape_from_path(file_path)
+    try:
+        return project_shape_to_svg(
+            shape,
+            projection["view"],
+            hidden_lines=projection["hiddenLines"],
+            source_path=str(file_path.resolve()),
+            document_id=source.get("documentId"),
+            document_revision=source.get("documentRevision"),
+        )
+    except CadProjectionError as error:
+        raise VectorProjectionInvalid(str(error)) from error
+
+
 def export_file_projection(
     path: str | Path,
     view: str,
@@ -255,21 +358,7 @@ def export_file_projection(
 ) -> dict[str, Any]:
     """Load a STEP/XBF, project it, and publish an immutable asset revision."""
     file_path = Path(path)
-    if not file_path.is_file():
-        raise VectorProjectionInvalid(f"no CAD file at {file_path}")
-    suffix = file_path.suffix.lower()
-    if suffix in _STEP_SUFFIXES:
-        from cad.engine.document import read_step_shape
-
-        shape = read_step_shape(file_path)
-    elif suffix in _XBF_SUFFIXES:
-        from cad.engine.document import read_xbf_shape
-
-        shape = read_xbf_shape(file_path)
-    else:
-        raise VectorProjectionInvalid(
-            "CAD projection reads a .step/.stp or .xbf file",
-        )
+    shape = _load_shape_from_path(file_path)
     try:
         export = project_shape_to_svg(
             shape,

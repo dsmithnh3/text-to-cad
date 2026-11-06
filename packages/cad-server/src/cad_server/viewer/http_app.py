@@ -966,7 +966,7 @@ class CadApp:
         send_json(response, 200, entry)
 
     def _vector_projection_routes(self, request, response, rest) -> None:
-        """``/api/v1/vector/projections``: publish CAD-accurate exports; get by revision id."""
+        """``/api/v1/vector/projections``: publish, get, regenerate CAD-accurate exports."""
         if len(rest) == 0:
             return self._methods(request, {
                 "GET": lambda: self._vector_projection_list(response),
@@ -976,6 +976,11 @@ class CadApp:
             revision_id = rest[0]
             return self._methods(request, {
                 "GET": lambda: self._vector_projection_get(response, revision_id),
+            })
+        if len(rest) == 2 and rest[0] and rest[1] == "regenerate":
+            revision_id = rest[0]
+            return self._methods(request, {
+                "POST": lambda: self._vector_projection_regenerate(request, response, revision_id),
             })
         raise ApiError(404, f"no route {request.path}", _ROUTES_HINT)
 
@@ -1047,6 +1052,43 @@ class CadApp:
         except VectorProjectionNotFound as error:
             raise ApiError(404, str(error), "export the projection, or open a revision that exists") from error
         send_json(response, 200, entry)
+
+    def _vector_projection_regenerate(self, request, response, revision_id: str) -> None:
+        from .vector_projections import (
+            MAX_BODY_BYTES,
+            VectorProjectionInvalid,
+            VectorProjectionNotFound,
+            VectorProjectionStaleRevision,
+        )
+
+        self._limit(request, MAX_BODY_BYTES)
+        payload = json.loads(request.body() or b"{}")
+        if type(payload) is not dict or "expectedRevision" not in payload:
+            raise ValueError(
+                'a projection regenerate is {"expectedRevision": <int>, "name"?: <string>}',
+            )
+        if not set(payload) <= {"expectedRevision", "name"}:
+            raise ValueError(
+                'a projection regenerate is {"expectedRevision": <int>, "name"?: <string>}',
+            )
+        try:
+            entry = self.vector_projections.regenerate(
+                revision_id,
+                payload["expectedRevision"],
+                name=payload.get("name"),
+            )
+        except VectorProjectionInvalid as error:
+            raise ApiError(400, str(error), "fix the CAD projection provenance as required") from error
+        except VectorProjectionNotFound as error:
+            raise ApiError(404, str(error), "export the projection, or open a revision that exists") from error
+        except VectorProjectionStaleRevision as error:
+            raise ApiError(
+                409,
+                str(error),
+                "reload the projection lineage and retry with its current revision",
+                currentRevision=error.current,
+            ) from error
+        send_json(response, 201, entry)
 
     # --- a kind's documents: /api/v1/documents/<kind>/<id>/... --------------------------
 
