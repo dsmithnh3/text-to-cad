@@ -1,6 +1,8 @@
 ---
 name: cad-to-isometric-svg
 description: Generate editable orthographic-isometric SVG illustrations from CAD-generated GLB files, using the unified vector workspace.
+metadata:
+  repository: https://github.com/earthtojake/text-to-cad
 ---
 # CAD-to-isometric SVG
 
