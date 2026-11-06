@@ -3,6 +3,11 @@
  * Brand names and each language's own name stay as that language writes them.
  */
 export default {
+  "vector.sourceEditor": "SVG ソースを編集",
+  "vector.sourceHint": "このインスタンスだけを変更します。元の素材は変更せず、別のベクターコンポーネントとして保存します。",
+  "vector.applySource": "SVG の変更を適用",
+  "vector.sourceSaved": "編集した SVG を保存しました",
+  "vector.sourceFailed": "SVG の変更を適用できません",
   // Vector Studio workspace, aligned with the existing viewer's locale keys.
   "vector.workspaceModes": "ワークスペースの切り替え",
   "vector.workspaceTitle": "ベクタースタジオ",
