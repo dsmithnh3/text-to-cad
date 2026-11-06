@@ -11,6 +11,7 @@ tessellates triangles and must never be labeled as CAD-accurate.
 from __future__ import annotations
 
 import math
+from pathlib import Path
 from typing import Any, Mapping
 
 from cad.eng_drawing import VIEW_DIRECTIONS, _Projection, _edge_polyline, _edges_bounds
@@ -26,9 +27,13 @@ __all__ = [
     "PROJECTION_VIEWS",
     "build_projection_provenance",
     "parse_projection_provenance",
+    "project_file_to_svg",
     "project_shape_to_svg",
     "view_class_for",
 ]
+
+_STEP_SUFFIXES = (".step", ".stp")
+_XBF_SUFFIXES = (".xbf",)
 
 KIND = "cad-projection"
 ILLUSTRATIVE_MESH_KIND = "illustrative-mesh"
@@ -182,6 +187,49 @@ def parse_projection_provenance(raw: Any) -> dict[str, Any]:
         "hiddenLines": hidden,
         "source": cleaned_source,
     }
+
+
+def _load_shape_from_path(file_path: Path) -> Any:
+    """Read a STEP/XBF as a build123d shape (kernel entry points stay in the library)."""
+    if not file_path.is_file():
+        raise CadProjectionError(f"no CAD file at {file_path}")
+    suffix = file_path.suffix.lower()
+    if suffix in _STEP_SUFFIXES:
+        from cad.engine.document import read_step_shape
+
+        return read_step_shape(file_path)
+    if suffix in _XBF_SUFFIXES:
+        from cad.engine.document import read_xbf_shape
+
+        return read_xbf_shape(file_path)
+    raise CadProjectionError("CAD projection reads a .step/.stp or .xbf file")
+
+
+def project_file_to_svg(
+    path: str | Path,
+    view: str,
+    *,
+    hidden_lines: bool = True,
+    document_id: str | None = None,
+    document_revision: str | None = None,
+    padding: float = _PADDING,
+) -> CadProjectionExport:
+    """Load a STEP/XBF from disk and project it to CAD-accurate SVG.
+
+    Shape loading stays in the library so host adapters (viewer HTTP, agent tools)
+    never name kernel build entry points.
+    """
+    file_path = Path(path)
+    shape = _load_shape_from_path(file_path)
+    return project_shape_to_svg(
+        shape,
+        view,
+        hidden_lines=hidden_lines,
+        source_path=str(file_path.resolve()),
+        document_id=document_id,
+        document_revision=document_revision,
+        padding=padding,
+    )
 
 
 def project_shape_to_svg(

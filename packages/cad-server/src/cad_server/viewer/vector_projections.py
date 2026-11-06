@@ -18,7 +18,7 @@ from cad.cad_projection import (
     CadProjectionError,
     CadProjectionExport,
     parse_projection_provenance,
-    project_shape_to_svg,
+    project_file_to_svg,
 )
 from cad.engine.ids import is_id
 from cad.engine.places import state_dir
@@ -42,8 +42,6 @@ __all__ = [
 FOLDER = "vector-projections"
 DOCUMENT = "revision.json"
 MAX_BODY_BYTES = MAX_PROJECT_BYTES + 4096
-_STEP_SUFFIXES = (".step", ".stp")
-_XBF_SUFFIXES = (".xbf",)
 
 
 class VectorProjectionStoreError(ValueError):
@@ -297,23 +295,6 @@ class VectorProjectionStore:
             write_bytes_atomic(path, payload)
 
 
-def _load_shape_from_path(file_path: Path) -> Any:
-    if not file_path.is_file():
-        raise VectorProjectionInvalid(f"no CAD file at {file_path}")
-    suffix = file_path.suffix.lower()
-    if suffix in _STEP_SUFFIXES:
-        from cad.engine.document import read_step_shape
-
-        return read_step_shape(file_path)
-    if suffix in _XBF_SUFFIXES:
-        from cad.engine.document import read_xbf_shape
-
-        return read_xbf_shape(file_path)
-    raise VectorProjectionInvalid(
-        "CAD projection reads a .step/.stp or .xbf file",
-    )
-
-
 def reproject_from_provenance(provenance: Any) -> CadProjectionExport:
     """Rebuild a CAD-accurate SVG from stored projection provenance.
 
@@ -330,14 +311,11 @@ def reproject_from_provenance(provenance: Any) -> CadProjectionExport:
         raise VectorProjectionInvalid(
             "regeneration requires provenance.source.path (document-only sources are not resolvable)",
         )
-    file_path = Path(path)
-    shape = _load_shape_from_path(file_path)
     try:
-        return project_shape_to_svg(
-            shape,
+        return project_file_to_svg(
+            path,
             projection["view"],
             hidden_lines=projection["hiddenLines"],
-            source_path=str(file_path.resolve()),
             document_id=source.get("documentId"),
             document_revision=source.get("documentRevision"),
         )
@@ -357,14 +335,11 @@ def export_file_projection(
     asset_id: str | None = None,
 ) -> dict[str, Any]:
     """Load a STEP/XBF, project it, and publish an immutable asset revision."""
-    file_path = Path(path)
-    shape = _load_shape_from_path(file_path)
     try:
-        export = project_shape_to_svg(
-            shape,
+        export = project_file_to_svg(
+            path,
             view,
             hidden_lines=hidden_lines,
-            source_path=str(file_path.resolve()),
             document_id=document_id,
             document_revision=document_revision,
         )

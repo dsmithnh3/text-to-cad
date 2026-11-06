@@ -8,7 +8,7 @@
     "listChanged": false
    }
   },
-  "instructions": "CAD shows local CAD models (STEP, XBF, STL, GLB, 3MF, DXF, URDF, SDF) in a viewer tab beside the chat. To show a model, call cad_show with its document id (running its script prints it) or a CAD file's absolute path: it switches an open viewer and never opens a tab. Only when cad_show reports no open viewer, call cad_open, once. Viewers follow every rebuild of a model and every save of a file, so never reopen after a rebuild. cad_view reports what the user is looking at and has selected; cad_screenshot returns what they see. Vector Studio projects use vector_project_create/get/update (expectedRevision on every update) and immutable catalog components via vector_catalog_publish/get/list (look up by revisionId).",
+  "instructions": "CAD shows local CAD models (STEP, XBF, STL, GLB, 3MF, DXF, URDF, SDF) in a viewer tab beside the chat. To show a model, call cad_show with its document id (running its script prints it) or a CAD file's absolute path: it switches an open viewer and never opens a tab. Only when cad_show reports no open viewer, call cad_open, once. Viewers follow every rebuild of a model and every save of a file, so never reopen after a rebuild. cad_view reports what the user is looking at and has selected; cad_screenshot returns what they see. Vector Studio projects use vector_project_create/get/update (expectedRevision on every update), immutable catalog components via vector_catalog_publish/get/list (look up by revisionId), and CAD-accurate projections via vector_projection_publish/get/list/regenerate (expectedRevision on regenerate).",
   "protocolVersion": "2025-06-18",
   "serverInfo": {
    "icons": [
@@ -1506,7 +1506,7 @@
     "additionalProperties": false,
     "properties": {
      "revisionId": {
-      "description": "Immutable catalog revision id published by vector_catalog_publish.",
+      "description": "Immutable catalog or projection revision id.",
       "minLength": 1,
       "type": "string"
      }
@@ -1534,6 +1534,153 @@
    },
    "name": "vector_catalog_list",
    "title": "List Vector catalog"
+  },
+  {
+   "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false,
+    "readOnlyHint": false
+   },
+   "description": "Publish a CAD-accurate orthographic or isometric projection as an immutable asset revision. Pass export={name,svg,projection} from a library export, or file+view to project a local STEP/XBF. Optional assetId advances that lineage's revision counter. Illustrative mesh provenance is rejected.",
+   "inputSchema": {
+    "additionalProperties": false,
+    "properties": {
+     "assetId": {
+      "description": "Optional asset lineage id to advance.",
+      "minLength": 1,
+      "type": "string"
+     },
+     "documentId": {
+      "minLength": 1,
+      "type": "string"
+     },
+     "documentRevision": {
+      "minLength": 1,
+      "type": "string"
+     },
+     "export": {
+      "additionalProperties": false,
+      "description": "CAD-accurate projection export: name, svg, projection provenance.",
+      "properties": {
+       "name": {
+        "minLength": 1,
+        "type": "string"
+       },
+       "projection": {
+        "type": "object"
+       },
+       "svg": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "name",
+       "svg",
+       "projection"
+      ],
+      "type": "object"
+     },
+     "file": {
+      "description": "Absolute path to a .step/.stp/.xbf file.",
+      "minLength": 1,
+      "type": "string"
+     },
+     "hiddenLines": {
+      "description": "Include hidden edges (default true).",
+      "type": "boolean"
+     },
+     "name": {
+      "minLength": 1,
+      "type": "string"
+     },
+     "view": {
+      "description": "Projection view: top/bottom/front/back/left/right/iso.",
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "name": "vector_projection_publish",
+   "title": "Publish CAD projection asset"
+  },
+  {
+   "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": true
+   },
+   "description": "Look up an immutable CAD projection asset by revisionId.",
+   "inputSchema": {
+    "additionalProperties": false,
+    "properties": {
+     "revisionId": {
+      "description": "Immutable catalog or projection revision id.",
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "revisionId"
+    ],
+    "type": "object"
+   },
+   "name": "vector_projection_get",
+   "title": "Get CAD projection revision"
+  },
+  {
+   "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": true
+   },
+   "description": "List published CAD-accurate projection asset revisions.",
+   "inputSchema": {
+    "additionalProperties": false,
+    "properties": {},
+    "type": "object"
+   },
+   "name": "vector_projection_list",
+   "title": "List CAD projection revisions"
+  },
+  {
+   "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false,
+    "readOnlyHint": false
+   },
+   "description": "Rebuild a CAD-accurate projection from a prior revision's provenance and publish a new immutable asset revision on the same lineage. expectedRevision must match the lineage tip; a stale tip returns currentRevision. Requires provenance.source.path.",
+   "inputSchema": {
+    "additionalProperties": false,
+    "properties": {
+     "expectedRevision": {
+      "description": "Optimistic concurrency token; required on every mutation.",
+      "minimum": 1,
+      "type": "integer"
+     },
+     "name": {
+      "description": "Optional replacement asset name.",
+      "minLength": 1,
+      "type": "string"
+     },
+     "revisionId": {
+      "description": "Immutable catalog or projection revision id.",
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "revisionId",
+     "expectedRevision"
+    ],
+    "type": "object"
+   },
+   "name": "vector_projection_regenerate",
+   "title": "Regenerate CAD projection"
   }
  ]
 }

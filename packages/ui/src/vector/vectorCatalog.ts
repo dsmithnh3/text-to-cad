@@ -1,6 +1,6 @@
 /**
  * Client adapter for the immutable Vector Studio component catalog.
- * Consumers (MCP/UI) look up published components by revisionId. Publish
+ * Hosts and UI look up published components by revisionId. Publish
  * validates component shape before the transport runs; there is no update
  * path — a new publish allocates a new revision id.
  */
@@ -143,7 +143,7 @@ export async function publishCatalogComponent(
   return asEntry(response.json);
 }
 
-/** Read one published catalog revision by revision id (MCP/UI consume path). */
+/** Read one published catalog revision by revision id (host/UI consume path). */
 export async function getCatalogRevision(
   transport: VectorCatalogTransport,
   revisionId: string,
@@ -159,7 +159,7 @@ export async function getCatalogRevision(
   return asEntry(response.json);
 }
 
-/** List published catalog revisions for MCP/UI library browsing. */
+/** List published catalog revisions for host/UI library browsing. */
 export async function listCatalogRevisions(
   transport: VectorCatalogTransport,
 ): Promise<VectorCatalogEntry[]> {

@@ -284,7 +284,8 @@ class TabServerTest(_Session):
         # All but the page's requests (its library, settings and telemetry answer among them) and the files the agent writes read.
         self.assertEqual(
             [name for name, tool in tools.items() if not tool["annotations"]["readOnlyHint"]],
-            ["cad_http", "cad_export", "cad_snapshot", "vector_project_create", "vector_project_update", "vector_catalog_publish"],
+            ["cad_http", "cad_export", "cad_snapshot", "vector_project_create", "vector_project_update",
+             "vector_catalog_publish", "vector_projection_publish", "vector_projection_regenerate"],
         )
         uri = tools["cad_home"]["_meta"]["ui"]["resourceUri"]
         self.assertRegex(uri, r"^ui://cad/[0-9A-Za-z.+_-]+/[0-9a-f]{16}/app\.html$")

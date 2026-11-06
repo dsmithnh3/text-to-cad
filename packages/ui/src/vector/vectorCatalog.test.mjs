@@ -89,7 +89,7 @@ test('publish then get by revision id', async () => {
   assert.equal(loaded.revisionId, published.revisionId);
 });
 
-test('list returns published revisions for MCP/UI consumption', async () => {
+test('list returns published revisions for host/UI consumption', async () => {
   const transport = memoryTransport();
   const first = await publishCatalogComponent(transport, sampleComponent({ name: 'A' }));
   const second = await publishCatalogComponent(transport, sampleComponent({ name: 'B' }));

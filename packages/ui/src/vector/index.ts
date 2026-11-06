@@ -1,5 +1,5 @@
 /**
- * `@cad/ui/vector`: shared Vector Studio surface for apps/web and apps/mcp.
+ * `@cad/ui/vector`: shared Vector Studio surface for the web viewer and CAD app.
  * Hosts inject storage, project/catalog transports, and optional library assets;
  * shared UI never discovers browser globals for persistence or HTTP.
  */

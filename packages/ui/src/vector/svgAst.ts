@@ -392,7 +392,7 @@ export function applySvgAstCommand(ast: SvgAst, command: SvgAstCommand): SvgAst 
 
 /**
  * Convenience: sanitize → parse → mutate → serialize for the existing asset.svg field.
- * Backward compatible with v1 project persistence and MCP project update payloads.
+ * Backward compatible with v1 project persistence and host project update payloads.
  */
 export function editAssetSvg(
   svg: string,
