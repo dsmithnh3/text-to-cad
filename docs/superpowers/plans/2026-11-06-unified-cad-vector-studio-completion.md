@@ -245,12 +245,12 @@ build123d/Open CASCADE, Node test runner, JSDOM, existing shell/Python CI runner
 - Produces: embedded Codex-capable Vector workspace + MCP tools.
 
 **Embedded Codex gate (required):**
-- [ ] Extract reusable Vector interface into `@cad/ui`.
-- [ ] Integrate into `apps/mcp` with `VectorView` and workspace switch.
-- [ ] Expose Vector MCP tools; prove via `tools/list` + mutation tests.
-- [ ] Reinstall the development plugin; open a **fresh** Codex chat; verify CAD/Vector switching.
-- [ ] Confirm embedded path is snapshot-based (no hot reload); browser Vite remains HMR.
-- [ ] Commit after local evidence; do not push unless authorized.
+- [x] Extract reusable Vector interface into `@cad/ui`.
+- [x] Integrate into `apps/mcp` with `VectorView` and workspace switch.
+- [x] Expose Vector MCP tools; prove via `tools/list` + mutation tests.
+- [x] Reinstall the development plugin; open a **fresh** Codex chat; verify CAD/Vector switching.
+- [x] Confirm embedded path is snapshot-based (no hot reload); browser Vite remains HMR.
+- [x] Commit after local evidence; do not push unless authorized.
 
 ---
 

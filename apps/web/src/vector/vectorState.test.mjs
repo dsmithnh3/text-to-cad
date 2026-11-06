@@ -9,7 +9,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const temporary = await mkdtemp(join(tmpdir(), 'text-to-cad-vector-state-'));
 const output = join(temporary, 'vector-state.mjs');
 await build({
-  entryPoints: [fileURLToPath(new URL('./vectorState.ts', import.meta.url))],
+  entryPoints: [fileURLToPath(new URL('../../../../packages/ui/src/vector/vectorState.ts', import.meta.url))],
   bundle: true,
   platform: 'node',
   format: 'esm',

@@ -112,7 +112,9 @@ INSTRUCTIONS = (
     "path: it switches an open viewer and never opens a tab. "
     "Only when cad_show reports no open viewer, call cad_open, once. "
     "Viewers follow every rebuild of a model and every save of a file, so never reopen after a rebuild. "
-    "cad_view reports what the user is looking at and has selected; cad_screenshot returns what they see."
+    "cad_view reports what the user is looking at and has selected; cad_screenshot returns what they see. "
+    "Vector Studio projects use vector_project_create/get/update (expectedRevision on every update) and "
+    "immutable catalog components via vector_catalog_publish/get/list (look up by revisionId)."
 )
 
 INLINE_INSTRUCTIONS = (
@@ -276,6 +278,8 @@ class Server:
         self._recents = recents
         self._tunnel = tunnel
         self._sidebar_views = sidebar_views
+        self._vector_projects = None
+        self._vector_catalog = None
         self._model: str | None = None  # what this thread last opened or showed
         self._tools: list[dict[str, Any]] | None = None
         from .operations import Operations
@@ -323,6 +327,24 @@ class Server:
 
             self._recents = RecentStore()
         return self._recents
+
+    @property
+    def vector_projects(self):
+        """Durable Vector Studio UUID/revision store (``viewer.vector_projects``)."""
+        if self._vector_projects is None:
+            from cad_server.viewer.vector_projects import VectorProjectStore
+
+            self._vector_projects = VectorProjectStore()
+        return self._vector_projects
+
+    @property
+    def vector_catalog(self):
+        """Immutable Vector component catalog (``viewer.vector_catalog``)."""
+        if self._vector_catalog is None:
+            from cad_server.viewer.vector_catalog import VectorCatalogStore
+
+            self._vector_catalog = VectorCatalogStore()
+        return self._vector_catalog
 
     @property
     def sidebar_views(self):
@@ -459,7 +481,9 @@ class Server:
         if self._tools is None:
             self._tools = self._tab_catalog() if self.tabs else self._text_catalog() if self.text else self._inline_catalog()
             from .operations import catalog
+            from .vector import catalog as vector_catalog
             self._tools += catalog()
+            self._tools += vector_catalog()
         return self._tools
 
     def _tab_catalog(self) -> list[dict[str, Any]]:
@@ -572,7 +596,9 @@ class Server:
         # Shared HTTP calls enforce their own route and consent authorization.
         listed = any(tool["name"] == name for tool in self.tools())
         from .operations import START
+        from .vector import VECTOR_TOOLS, VectorToolError, handle as vector_handle
         handler = ((lambda arguments, context: self._operation(name, arguments)) if name in START else
+                   (lambda arguments, context: self._vector_tool(name, arguments)) if name in VECTOR_TOOLS else
                    getattr(self, f"_tool_{name}", None)) if listed else None
         if handler is None:
             self._refused(name, "no_view")  # a tool of cadgen's this host was not listed: a view it does not show
@@ -589,6 +615,9 @@ class Server:
                 self._reach(result["structuredContent"]["launch"])
             ok = not (isinstance(result, dict) and result.get("isError"))
             return result
+        except VectorToolError as failure:
+            reason = "bad_request"
+            return _text(str(failure), failure.structured or None, error=True)
         except ToolFailed as failure:
             reason = failure.reason
             return _text(str(failure), error=True)
@@ -646,6 +675,18 @@ class Server:
     def _operation(self, name, arguments):
         result = self.operations.call(name, arguments)
         return _text(json.dumps(result), result, error=result["state"] in ("failed", "rejected"))
+
+    def _vector_tool(self, name, arguments):
+        """Typed Vector Studio tools: durable projects and immutable catalog revisions."""
+        from .vector import handle as vector_handle
+
+        result = vector_handle(
+            name,
+            arguments,
+            projects=self.vector_projects,
+            catalog_store=self.vector_catalog,
+        )
+        return _text(json.dumps(result, ensure_ascii=False), result)
 
     # launches -----------------------------------------------------------------
 

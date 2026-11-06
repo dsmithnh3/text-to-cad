@@ -40,10 +40,17 @@ After a Python server change, restart the engine/app as usual. After any plugin 
 
 ## Vector Studio inside the embedded app
 
-Vector Studio currently ships in `apps/web`. The embedded MCP app gains a Vector workspace only after the completion-plan Task that extracts the reusable Vector surface into `@cad/ui` and adds `VectorView` to `apps/mcp`. Until then:
+The reusable Vector surface lives in `@cad/ui/vector`. Both `apps/web` and `apps/mcp`
+(`VectorView`) host it. After Vector or MCP app inputs change:
 
-- Test Vector Studio in the browser Viewer loop.
-- Test CAD in both browser Viewer and the embedded Codex CAD view.
+```bash
+scripts/dev/refresh_codex_plugin.py --force
+# or: scripts/install/dev_install.py codex
+```
+
+Then open a **fresh** Codex chat and switch CAD ↔ Vector Studio in the embedded
+viewer. Existing frames keep the snapshot they started with. Browser Vite remains
+the HMR loop (`scripts/dev/vector-studio.sh`).
 
 ## Related commands
 

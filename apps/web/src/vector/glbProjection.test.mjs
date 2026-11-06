@@ -9,7 +9,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const temporary = await mkdtemp(join(tmpdir(), 'text-to-cad-glb-projection-'));
 const output = join(temporary, 'glb-projection.mjs');
 await build({
-  entryPoints: [fileURLToPath(new URL('./glbProjection.ts', import.meta.url))],
+  entryPoints: [fileURLToPath(new URL('../../../../packages/ui/src/vector/glbProjection.ts', import.meta.url))],
   bundle: true,
   platform: 'node',
   format: 'esm',

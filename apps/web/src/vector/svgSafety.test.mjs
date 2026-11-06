@@ -10,7 +10,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const temporary = await mkdtemp(join(tmpdir(), 'text-to-cad-svg-safety-'));
 const output = join(temporary, 'svg-safety.mjs');
 await build({
-  entryPoints: [fileURLToPath(new URL('./svgSafety.ts', import.meta.url))],
+  entryPoints: [fileURLToPath(new URL('../../../../packages/ui/src/vector/svgSafety.ts', import.meta.url))],
   bundle: true,
   platform: 'node',
   format: 'esm',

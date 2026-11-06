@@ -60,7 +60,8 @@ The importer writes the SVG files into \`apps/web/src/vector/assets/\`, intentio
 | Immutable component catalog | Publish-once revisions under `/api/v1/vector/catalog`; MCP/UI consume by revision id |
 | Per-instance raw SVG source editing | Implemented |
 | Structured SVG path/node editing | Not implemented |
-| Vector MCP tools and agent-controlled project editing | Not implemented |
+| Vector MCP tools and agent-controlled project editing | Implemented (`vector_project_*`, `vector_catalog_*`; expectedRevision on mutation) |
+| Shared `@cad/ui/vector` + MCP `VectorView` | Implemented (embedded Codex snapshot; browser Vite HMR) |
 | Full parity with prior 12MB offline Vector Studio prototype | Not claimed |
 | Manufacturer-certified equipment / compliant piping sizing | Not implemented |
 
