@@ -61,11 +61,9 @@ function memoryDraftStorage(): VectorDraftStorage {
 }
 
 function resolveDraftStorage(storage?: VectorDraftStorage | null): VectorDraftStorage {
-  if (storage) return storage;
-  try {
-    if (typeof sessionStorage !== 'undefined') return sessionStorage;
-  } catch { /* sandboxed */ }
-  return memoryDraftStorage();
+  // Hosts inject storage (web: sessionStorage; CAD app: memory). Shared UI never
+  // discovers host storage — check-dependencies treats that as a boundary error.
+  return storage ?? memoryDraftStorage();
 }
 
 export type VectorWorkspaceDocument = {
@@ -75,7 +73,7 @@ export type VectorWorkspaceDocument = {
 
 export type VectorWorkspaceProps = {
   locale: string;
-  /** Host-supplied draft storage. Defaults to sessionStorage when available. */
+  /** Host-supplied draft storage. Defaults to in-memory when omitted. */
   draftStorage?: VectorDraftStorage | null;
   /** Durable UUID/revision store transport. When set, commits sync with expectedRevision. */
   projectStore?: VectorProjectStoreTransport | null;

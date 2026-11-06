@@ -22,15 +22,25 @@ const bundledAssets: VectorAsset[] = Object.entries(rawLibrary).map(([path, svg]
   provenance: 'source-derived',
 }));
 
+function sessionDraftStorage() {
+  try {
+    return window.sessionStorage;
+  } catch {
+    return undefined;
+  }
+}
+
 export default function VectorWorkspace({ locale }: { locale: string }) {
   const projectStore = useMemo(() => createBrowserVectorProjectTransport(), []);
   const catalog = useMemo(() => createBrowserVectorCatalogTransport(), []);
+  const draftStorage = useMemo(() => sessionDraftStorage(), []);
   return (
     <SharedVectorWorkspace
       locale={locale}
       libraryAssets={bundledAssets}
       projectStore={projectStore}
       catalog={catalog}
+      draftStorage={draftStorage}
     />
   );
 }
