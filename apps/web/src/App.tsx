@@ -195,13 +195,14 @@ export default function App({ client, server, tabStore, notice = null, language:
     setWorkspace(next);
     try { sessionStorage.setItem('cad-unified-workspace', next); } catch { /* transient tab */ }
   };
+  const trWorkspace = translator(locale);
   return <div className="relative flex h-svh flex-col overflow-hidden">{engineGone && !restarting ? <EngineStopped locale={locale} refused={refused} /> : null}
     {/* The engine gone, its notice is the page's one: what is under it (a view's own "can't reach"
         card among it) is out of reach and unheard until it is back. An update's restart says nothing. */}
-    <nav aria-label="Workspace modes" className="flex h-10 shrink-0 items-center gap-1 border-b border-border bg-background px-3">
+    <nav aria-label={trWorkspace('vector.workspaceModes')} className="flex h-10 shrink-0 items-center gap-1 border-b border-border bg-background px-3">
       <Button size="xs" variant={workspace === 'cad' ? 'secondary' : 'ghost'} onClick={() => switchWorkspace('cad')} aria-current={workspace === 'cad' ? 'page' : undefined}><Box/> CAD</Button>
-      <Button size="xs" variant={workspace === 'vector' ? 'secondary' : 'ghost'} onClick={() => switchWorkspace('vector')} aria-current={workspace === 'vector' ? 'page' : undefined}><Layers3/> Vector Studio</Button>
-      <span className="ml-auto text-xs text-muted-foreground">CAD engine &amp; Vector workspace · independent</span>
+      <Button size="xs" variant={workspace === 'vector' ? 'secondary' : 'ghost'} onClick={() => switchWorkspace('vector')} aria-current={workspace === 'vector' ? 'page' : undefined}><Layers3/> {trWorkspace('vector.workspaceTitle')}</Button>
+      <span className="ml-auto text-xs text-muted-foreground">{trWorkspace('vector.independent')}</span>
     </nav>
     <div className="min-h-0 flex-1 flex flex-col" inert={(engineGone && !restarting) || undefined} aria-hidden={(engineGone && !restarting) || undefined}>
       <div className="min-h-0 flex-1" style={{display:workspace === 'cad' ? 'block' : 'none'}}>
@@ -210,6 +211,6 @@ export default function App({ client, server, tabStore, notice = null, language:
       update={updater.notice || updater.phase.phase !== 'idle' ? <UpdateButton notice={updater.notice} phase={updater.phase} onUpdate={updater.update} /> : null}
       colorScheme={colorScheme} language={language} />
       </div>
-      {workspace === 'vector' ? <div className="min-h-0 flex-1"><VectorWorkspace /></div> : null}
+      {workspace === 'vector' ? <div className="min-h-0 flex-1"><VectorWorkspace locale={locale} /></div> : null}
   </div></div>;
 }
