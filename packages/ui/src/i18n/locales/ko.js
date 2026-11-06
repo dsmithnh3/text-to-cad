@@ -3,6 +3,11 @@
  * Brand names and each language's own name stay as that language writes them.
  */
 export default {
+  "vector.sourceEditor": "SVG 소스 편집",
+  "vector.sourceHint": "이 인스턴스만 변경합니다. 원본 자산은 그대로 두고 별도 벡터 구성 요소로 저장합니다.",
+  "vector.applySource": "SVG 변경 적용",
+  "vector.sourceSaved": "편집한 SVG 구성 요소를 저장했습니다",
+  "vector.sourceFailed": "SVG 변경 사항을 적용할 수 없습니다",
   // Vector Studio workspace, aligned with the existing viewer's locale keys.
   "vector.workspaceModes": "작업공간 모드",
   "vector.workspaceTitle": "벡터 스튜디오",
