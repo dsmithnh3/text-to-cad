@@ -65,7 +65,7 @@ function isolatedSvg(xml: string, suffix: string): string {
   }
   return new XMLSerializer().serializeToString(root);
 }
-const empty = (): Project => ({ schema: 'cad-vector-studio/v1', name: 'Untitled vector assembly', items: [], assets: [...builtin, ...bundledAssets], width: 1200, height: 760 });
+const empty = (): Project => ({ schema: 'cad-vector-studio/v1', name: 'Untitled vector assembly', items: [], assets: [], width: 1200, height: 760 });
 function load(): Project {
   try {
     const raw = sessionStorage.getItem(ROOT);
@@ -90,8 +90,8 @@ export default function VectorWorkspace() {
   const drag = useRef<{id:string;px:number;py:number;ox:number;oy:number}|null>(null);
   const stage = useRef<SVGSVGElement|null>(null);
   const selectedItem = project.items.find(i => i.id === selected);
-  const assetMap = useMemo(() => new Map(project.assets.map(a => [a.id,a])), [project.assets]);
-  const assets = project.assets.filter(a => (a.name + ' ' + a.category).toLowerCase().includes(filter.toLowerCase()));
+  const assetMap = useMemo(() => new Map([...builtin, ...bundledAssets, ...project.assets].map(a => [a.id,a])), [project.assets]);
+  const assets = [...builtin, ...bundledAssets, ...project.assets].filter(a => (a.name + ' ' + a.category).toLowerCase().includes(filter.toLowerCase()));
   useEffect(() => { try { sessionStorage.setItem(ROOT, JSON.stringify(project)); } catch { /* explicit JSON save remains available */ } }, [project]);
   const commit = useCallback((next: Project | ((p:Project) => Project)) => {
     setProject(p => { setHistory(h => [...h.slice(-49), p]); return typeof next === 'function' ? next(p) : next; });
