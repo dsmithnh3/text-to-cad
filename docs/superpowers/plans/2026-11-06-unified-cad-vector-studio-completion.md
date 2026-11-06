@@ -125,10 +125,10 @@ build123d/Open CASCADE, Node test runner, JSDOM, existing shell/Python CI runner
 - Produces: versioned draft write/restore that reports storage-quota failures; only committed
   reducer revisions are persisted.
 
-- [ ] Add failing session-restore and storage-quota failure tests.
-- [ ] Route workspace/project persistence through the established versioned tab lifecycle or an
+- [x] Add failing session-restore and storage-quota failure tests.
+- [x] Route workspace/project persistence through the established versioned tab lifecycle or an
   explicit host adapter that reports write failure.
-- [ ] Run focused web tests; commit `feat(vector): persist drafts with quota failures`
+- [x] Run focused web tests; commit `feat(vector): persist drafts with quota failures`
 
 ---
 

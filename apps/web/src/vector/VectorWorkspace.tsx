@@ -1,8 +1,9 @@
 import { translator } from '@cad/ui/i18n';
 import { projectGLB } from './glbProjection';
 import { isolateSvg, sanitizeSvg } from './svgSafety';
+import { persistCommittedDraft, readVectorDraft } from './vectorDraft';
 import { parseVectorProject, type VectorAsset as Asset, type VectorItem as Item, type VectorProject as Project } from './vectorProject';
-import { createVectorState, reduceVectorState } from './vectorState';
+import { createVectorState, reduceVectorState, type VectorEditorAction } from './vectorState';
 import { useEffect, useMemo, useReducer, useRef, useState, type ComponentProps, type PointerEvent as ReactPointerEvent } from 'react';
 import { Button } from '@cad/ui/primitives/button';
 import { Box, ChevronDown, ChevronUp, Copy, Download, Eye, EyeOff, FolderOpen, Grid3X3, Layers, Lock, LockOpen, Plus, Redo2, RotateCcw, Save, Search, Trash2, Undo2, Upload, ZoomIn, ZoomOut } from 'lucide-react';
@@ -14,7 +15,6 @@ import './vector.css';
  * Source SVGs imported from assets/ are optional and intentionally not vendored in this fork.
  */
 const NS = 'http://www.w3.org/2000/svg';
-const ROOT = 'cad-vector-studio-project-v1';
 const builtin: Asset[] = [
   { id: 'room-shell', name: 'Room shell · starter', category: 'Building', provenance: 'user-import', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 130"><path d="M10 42 108 10l82 37-98 36Z" fill="#b4c6d2" stroke="#64748b"/><path d="M10 42v65l82 20V83Z" fill="#e0e7ee" stroke="#64748b"/><path d="M92 83v44l98-39V47Z" fill="#93aabc" stroke="#64748b"/></svg>' },
   { id: 'demo-unit', name: 'Equipment block · starter', category: 'Equipment', provenance: 'user-import', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 100"><path d="M8 28 130 4l42 21-120 26Z" fill="#d7e1ea" stroke="#4b6173"/><path d="M8 28v47l44 20V51Z" fill="#b9ced9" stroke="#4b6173"/><path d="M52 51v44l120-25V25Z" fill="#8ca8b8" stroke="#4b6173"/><circle cx="87" cy="63" r="19" fill="#324e64" stroke="#e4f0f4" stroke-width="3"/><path d="M87 48v30M72 63h30" stroke="#e4f0f4" stroke-width="3"/></svg>' }
@@ -36,12 +36,7 @@ const download = (name: string, data: Blob) => {
 };
 const empty = (): Project => ({ schema: 'cad-vector-studio/v1', name: 'Untitled vector assembly', items: [], assets: [], width: 1200, height: 760 });
 function load(): Project {
-  try {
-    const raw = sessionStorage.getItem(ROOT);
-    if (!raw) return empty();
-    return parseVectorProject(raw);
-  } catch { /* quota/malformed/private-tab storage */ }
-  return empty();
+  return readVectorDraft(sessionStorage) ?? empty();
 }
 export default function VectorWorkspace({ locale }: { locale: string }) {
   const tr = translator(locale);
@@ -71,14 +66,20 @@ export default function VectorWorkspace({ locale }: { locale: string }) {
     setSourceOpen(false);
   }, [selected]);
   const assets = [...builtin, ...bundledAssets, ...project.assets].filter(a => (a.name + ' ' + a.category).toLowerCase().includes(filter.toLowerCase()));
-  useEffect(() => { try { sessionStorage.setItem(ROOT, JSON.stringify(project)); } catch { /* explicit JSON save remains available */ } }, [project]);
+  const apply = (action: VectorEditorAction) => {
+    const next = reduceVectorState(editorRef.current, action);
+    dispatch(action);
+    const result = persistCommittedDraft(sessionStorage, action, next.project);
+    if (result && !result.ok) setMessage(result.message);
+    return result;
+  };
   const commit = (next: Project | ((p:Project) => Project), baseline?: Project) => {
     const current = editorRef.current.project;
     const projectNext = typeof next === 'function' ? next(current) : next;
-    dispatch({ type: 'commit', project: projectNext, baseline });
+    apply({ type: 'commit', project: projectNext, baseline });
   };
-  const undo = () => { dispatch({ type: 'undo' }); };
-  const redo = () => { dispatch({ type: 'redo' }); };
+  const undo = () => { apply({ type: 'undo' }); };
+  const redo = () => { apply({ type: 'redo' }); };
   const change = (patch:Partial<Item>) => selected && commit(p => ({...p,items:p.items.map(i => i.id===selected?{...i,...patch}:i)}));
   const insert = (a:Asset) => {
     const next:Item = {id:id(),assetId:a.id,name:a.name,x:330+project.items.length*24,y:150+project.items.length*20,w:240,h:160,rotate:0,opacity:1,hidden:false,locked:false};
@@ -102,7 +103,7 @@ export default function VectorWorkspace({ locale }: { locale: string }) {
   const onMove = (event:ReactPointerEvent<SVGSVGElement>) => {
     const d=drag.current;if(!d)return;
     const pt=point(event), grid=(n:number)=>snap?Math.round(n/20)*20:n;
-    dispatch({
+    apply({
       type: 'preview',
       project: {
         ...editorRef.current.project,
@@ -163,8 +164,9 @@ export default function VectorWorkspace({ locale }: { locale: string }) {
       };
       // Re-validate after sanitization in case SVG rewrite changes aggregate budgets.
       parseVectorProject(JSON.stringify(cleaned));
-      dispatch({ type: 'replace', project: cleaned });
-      setSelected('');setMessage('Project loaded');
+      const write = apply({ type: 'replace', project: cleaned });
+      setSelected('');
+      if (!write || write.ok) setMessage('Project loaded');
     } catch(e){setMessage('Cannot open project: '+String(e));}
   };
   const exportSvg = () => {
@@ -207,7 +209,7 @@ export default function VectorWorkspace({ locale }: { locale: string }) {
   const ButtonSmall=(props:ComponentProps<typeof Button>)=><Button variant="ghost" size="icon-sm" {...props}/>;
   return <div className="vs-root bg-background text-foreground">
     <div className="vs-header border-b border-border bg-background">
-      <div className="flex items-center gap-2 min-w-0"><Box className="size-4 text-muted-foreground"/><input className="vs-title" aria-label={tr('vector.projectName')} value={project.name} onChange={e=>dispatch({ type: 'preview', project: { ...editorRef.current.project, name: e.target.value } })}/><span className="vs-subtitle">{tr('vector.workspace')}</span></div>
+      <div className="flex items-center gap-2 min-w-0"><Box className="size-4 text-muted-foreground"/><input className="vs-title" aria-label={tr('vector.projectName')} value={project.name} onChange={e=>commit({ ...editorRef.current.project, name: e.target.value })}/><span className="vs-subtitle">{tr('vector.workspace')}</span></div>
       <div className="flex items-center gap-1">
         <ButtonSmall aria-label={tr('vector.undo')} title={tr('vector.undo')} disabled={!history.length} onClick={undo}><Undo2/></ButtonSmall>
         <ButtonSmall aria-label={tr('vector.redo')} title={tr('vector.redo')} disabled={!future.length} onClick={redo}><Redo2/></ButtonSmall>
