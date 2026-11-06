@@ -3,6 +3,7 @@ import { Button } from '@cad/ui/primitives/button';
 import { Box, ChevronDown, ChevronUp, Copy, Download, Eye, EyeOff, FolderOpen, Grid3X3, Layers, Lock, LockOpen, Plus, Redo2, RotateCcw, Save, Search, Trash2, Undo2, Upload, ZoomIn, ZoomOut } from 'lucide-react';
 import { useEffect, useMemo, useReducer, useRef, useState, type ComponentProps, type PointerEvent as ReactPointerEvent } from 'react';
 import { projectGLB } from './glbProjection.js';
+import StructuredSvgControls from './StructuredSvgControls.js';
 import { isolateSvg, sanitizeSvg } from './svgSafety.js';
 import {
   getCatalogRevision,
@@ -410,29 +411,53 @@ export default function VectorWorkspace({
       new Blob([new XMLSerializer().serializeToString(output)], { type: 'image/svg+xml' }),
     );
   };
+  /** Write SVG onto the selected item: update an exclusive project asset in place, else fork. */
+  const writeSelectedSvg = (nextSvg: string, labelSuffix = ' · edited') => {
+    if (!selectedItem) return;
+    const sanitized = sanitizeSvg(nextSvg);
+    const base = assetMap.get(selectedItem.assetId);
+    if (!base) throw Error('Component source missing');
+    const exclusive = project.items.filter((i) => i.assetId === selectedItem.assetId).length === 1
+      && project.assets.some((a) => a.id === selectedItem.assetId);
+    if (exclusive) {
+      commit((p) => ({
+        ...p,
+        assets: p.assets.map((a) => (a.id === selectedItem.assetId ? { ...a, svg: sanitized } : a)),
+      }));
+      setSourceDraft(sanitized);
+      return;
+    }
+    const copy: Asset = {
+      ...base,
+      id: id(),
+      name: selectedItem.name + labelSuffix,
+      category: base.category,
+      provenance: 'user-import',
+      svg: sanitized,
+    };
+    commit((p) => ({
+      ...p,
+      assets: [...p.assets, copy],
+      items: p.items.map((i) => (i.id === selectedItem.id ? { ...i, assetId: copy.id } : i)),
+    }));
+    setSourceDraft(sanitized);
+  };
   const applySource = () => {
     if (!selectedItem || !sourceDraft) return;
     try {
-      const sanitized = sanitizeSvg(sourceDraft);
-      const base = assetMap.get(selectedItem.assetId);
-      if (!base) throw Error('Component source missing');
-      const copy: Asset = {
-        ...base,
-        id: id(),
-        name: selectedItem.name + ' · edited',
-        category: base.category,
-        provenance: 'user-import',
-        svg: sanitized,
-      };
-      commit((p) => ({
-        ...p,
-        assets: [...p.assets, copy],
-        items: p.items.map((i) => (i.id === selectedItem.id ? { ...i, assetId: copy.id } : i)),
-      }));
-      setSourceDraft(sanitized);
+      writeSelectedSvg(sourceDraft);
       setMessage(tr('vector.sourceSaved'));
     } catch (e) {
       setMessage(tr('vector.sourceFailed') + ': ' + String(e));
+    }
+  };
+  const applyStructuredSvg = (nextSvg: string) => {
+    if (!selectedItem) return;
+    try {
+      writeSelectedSvg(nextSvg);
+      setMessage(tr('vector.structuredSaved'));
+    } catch (e) {
+      setMessage(tr('vector.structuredFailed') + ': ' + String(e));
     }
   };
   const doDuplicate = () => {
@@ -513,6 +538,11 @@ export default function VectorWorkspace({
         {selectedItem ? <div className="vs-properties">
           <label>{tr('vector.componentName')}<input value={selectedItem.name} onChange={(e) => change({ name: e.target.value })}/></label>
           <div className="vs-fields">{(['x', 'y', 'w', 'h', 'rotate', 'opacity'] as const).map((k) => <label key={k}>{k === 'rotate' ? tr('vector.rotation') : k === 'opacity' ? tr('vector.opacity') : k.toUpperCase()}<input type="number" step={k === 'opacity' ? .05 : 1} min={k === 'opacity' ? 0 : undefined} max={k === 'opacity' ? 1 : undefined} value={selectedItem[k]} onChange={(e) => change({ [k]: Number(e.target.value) })}/></label>)}</div>
+          <StructuredSvgControls
+            svg={assetMap.get(selectedItem.assetId)?.svg || sourceDraft}
+            tr={tr}
+            onSvgChange={applyStructuredSvg}
+          />
           <div className="vs-source-editor">
             <Button size="sm" variant="outline" onClick={() => setSourceOpen((open) => !open)}>
               {tr('vector.sourceEditor')} {sourceOpen ? '−' : '+'}

@@ -280,8 +280,8 @@ build123d/Open CASCADE, Node test runner, JSDOM, existing shell/Python CI runner
 - Consumes: Task 10 AST.
 - Produces: structured controls in the shared Vector surface.
 
-- [ ] Failing control tests.
-- [ ] Implement controls; focused UI/web/mcp tests; commit.
+- [x] Failing control tests.
+- [x] Implement controls; focused UI/web/mcp tests; commit.
 
 ---
 

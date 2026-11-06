@@ -90,4 +90,21 @@ export type {
   SvgOpaqueNode,
   SvgPathCommand,
 } from './svgAst.js';
+export {
+  applyStructuredSvgEdit,
+  collectOpaqueMarkups,
+  findSvgAstNode,
+  findSvgAstNodeById,
+  listSvgAstEntries,
+  patchStructuredAttrs,
+  patchStructuredPathD,
+  pathCommandsToD,
+  structuredAttrsFor,
+} from './svgStructuredControls.js';
+export type {
+  StructuredSvgEditResult,
+  SvgAstListEntry,
+} from './svgStructuredControls.js';
+export { default as StructuredSvgControls } from './StructuredSvgControls.js';
+export type { StructuredSvgControlsProps } from './StructuredSvgControls.js';
 export { projectGLB } from './glbProjection.js';
