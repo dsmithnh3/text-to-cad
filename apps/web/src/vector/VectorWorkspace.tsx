@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps, type PointerEvent as ReactPointerEvent } from 'react';
 import { Button } from '@cad/ui/primitives/button';
 import { Box, ChevronDown, ChevronUp, Copy, Download, Eye, EyeOff, FolderOpen, Grid3X3, Layers, Lock, LockOpen, Plus, Redo2, RotateCcw, Save, Search, Trash2, Undo2, Upload, ZoomIn, ZoomOut } from 'lucide-react';
 import './vector.css';
@@ -104,15 +104,15 @@ export default function VectorWorkspace() {
     const next:Item = {id:id(),assetId:a.id,name:a.name,x:330+project.items.length*24,y:150+project.items.length*20,w:240,h:160,rotate:0,opacity:1,hidden:false,locked:false};
     commit(p=>({...p,items:[...p.items,next]}));setSelected(next.id);setMessage('Added '+a.name);
   };
-  const point = (event:React.PointerEvent<SVGSVGElement>) => {
+  const point = (event:ReactPointerEvent<SVGSVGElement>) => {
     const r=stage.current!.getBoundingClientRect(); return {x:(event.clientX-r.left-pan.x)/zoom,y:(event.clientY-r.top-pan.y)/zoom};
   };
-  const onDown = (event:React.PointerEvent<SVGSVGElement>, item:Item) => {
+  const onDown = (event:ReactPointerEvent<SVGSVGElement>, item:Item) => {
     if (item.locked) return; const p=point(event);
     setSelected(item.id); drag.current={id:item.id,px:p.x,py:p.y,ox:item.x,oy:item.y};
     stage.current?.setPointerCapture(event.pointerId);
   };
-  const onMove = (event:React.PointerEvent<SVGSVGElement>) => {
+  const onMove = (event:ReactPointerEvent<SVGSVGElement>) => {
     const d=drag.current;if(!d)return;
     const pt=point(event), grid=(n:number)=>snap?Math.round(n/20)*20:n;
     setProject(p=>({...p,items:p.items.map(i=>i.id===d.id?{...i,x:grid(d.ox+pt.x-d.px),y:grid(d.oy+pt.y-d.py)}:i)}));
@@ -157,7 +157,7 @@ export default function VectorWorkspace() {
   };
   const doDuplicate=()=>{if(!selectedItem)return;const copy={...selectedItem,id:id(),x:selectedItem.x+24,y:selectedItem.y+24};commit(p=>({...p,items:[...p.items,copy]}));setSelected(copy.id);};
   const doDelete=()=>{if(!selected)return;commit(p=>({...p,items:p.items.filter(i=>i.id!==selected)}));setSelected('');};
-  const ButtonSmall=(props:React.ComponentProps<typeof Button>)=><Button variant="ghost" size="icon-sm" {...props}/>;
+  const ButtonSmall=(props:ComponentProps<typeof Button>)=><Button variant="ghost" size="icon-sm" {...props}/>;
   return <div className="vs-root bg-background text-foreground">
     <div className="vs-header border-b border-border bg-background">
       <div className="flex items-center gap-2 min-w-0"><Box className="size-4 text-muted-foreground"/><input className="vs-title" aria-label="Project name" value={project.name} onChange={e=>setProject(p=>({...p,name:e.target.value}))}/><span className="vs-subtitle">VECTOR WORKSPACE</span></div>
