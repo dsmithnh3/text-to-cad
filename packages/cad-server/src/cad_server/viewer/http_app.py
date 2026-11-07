@@ -272,6 +272,9 @@ class CadApp:
 
         from .drawings import DrawingRenders
         from .prompt_files import PromptFiles
+        from .vector_catalog import VectorCatalogStore
+        from .vector_projects import VectorProjectStore
+        from .vector_projections import VectorProjectionStore
 
         # The drawing route's renders, off the request and one per drawing (``drawings.py``).
         self.drawings = DrawingRenders(on_crash=lambda error: self._crashed(error, bugs_only=True))
@@ -279,6 +282,12 @@ class CadApp:
         # reads dispatched directly to its document server (``documents.py``).
         self.engine_documents = documents or EngineDocuments(on_crash=lambda error: self._crashed(error, bugs_only=True))
         self.prompt_files = PromptFiles()
+        # Durable Vector Studio projects (UUID + expected-revision mutations).
+        self.vector_projects = VectorProjectStore()
+        # Immutable Vector component catalog (publish once; consume by revision id).
+        self.vector_catalog = VectorCatalogStore()
+        # Immutable CAD-accurate projection asset revisions (orthographic / isometric HLR).
+        self.vector_projections = VectorProjectionStore()
         self._exports = None
         self.start = to_posix_path(os.path.abspath(start if start is not None else _working_folder()))
         # Whether this computer has a file chooser for the home's Open (``POST /api/v1/local/pick``).
@@ -578,6 +587,8 @@ class CadApp:
             return self._documents(request, response, rest)
         if head == "exports":
             return self._export_jobs(request, response, rest)
+        if head == "vector":
+            return self._vector(request, response, rest)
         if head == "local":
             return self._local(request, response, rest)
         raise ApiError(404, f"no route {pathname}", _ROUTES_HINT)
@@ -829,6 +840,255 @@ class CadApp:
         if len(rest) <= 2 and (len(rest) < 2 or rest[1] == "file") and all(rest):
             return self._methods(request, {"GET": lambda: self.exports.handle(request, response, rest)})
         raise ApiError(404, f"no route {request.path}", _ROUTES_HINT)
+
+    # --- Vector Studio: /api/v1/vector/{projects,catalog,projections} ----------
+
+    def _vector(self, request, response, rest) -> None:
+        """``/api/v1/vector/{projects|catalog|projections}``: projects, catalog, CAD projections."""
+        if not rest or not rest[0]:
+            raise ApiError(404, f"no route {request.path}", _ROUTES_HINT)
+        if rest[0] == "projects":
+            return self._vector_projects(request, response, rest[1:])
+        if rest[0] == "catalog":
+            return self._vector_catalog_routes(request, response, rest[1:])
+        if rest[0] == "projections":
+            return self._vector_projection_routes(request, response, rest[1:])
+        raise ApiError(404, f"no route {request.path}", _ROUTES_HINT)
+
+    def _vector_projects(self, request, response, rest) -> None:
+        """``/api/v1/vector/projects``: create, get, and expected-revision update."""
+        if len(rest) == 0:
+            return self._methods(request, {
+                "POST": lambda: self._vector_create(request, response),
+            })
+        if len(rest) == 1 and rest[0]:
+            ident = rest[0]
+            return self._methods(request, {
+                "GET": lambda: self._vector_get(response, ident),
+                "PUT": lambda: self._vector_update(request, response, ident),
+            })
+        raise ApiError(404, f"no route {request.path}", _ROUTES_HINT)
+
+    def _vector_catalog_routes(self, request, response, rest) -> None:
+        """``/api/v1/vector/catalog``: publish, list, get by revision id; never mutate."""
+        if len(rest) == 0:
+            return self._methods(request, {
+                "GET": lambda: self._vector_catalog_list(response),
+                "POST": lambda: self._vector_catalog_publish(request, response),
+            })
+        if len(rest) == 1 and rest[0]:
+            revision_id = rest[0]
+            return self._methods(request, {
+                "GET": lambda: self._vector_catalog_get(response, revision_id),
+            })
+        raise ApiError(404, f"no route {request.path}", _ROUTES_HINT)
+
+    def _vector_create(self, request, response) -> None:
+        from .vector_projects import MAX_BODY_BYTES, VectorProjectInvalid
+
+        self._limit(request, MAX_BODY_BYTES)
+        payload = json.loads(request.body() or b"{}")
+        if type(payload) is not dict or "project" not in payload or not set(payload) <= {"project"}:
+            raise ValueError('a vector project create is {"project": <object or JSON string>}')
+        try:
+            document = self.vector_projects.create(payload["project"])
+        except VectorProjectInvalid as error:
+            raise ApiError(400, str(error), "fix the project as the schema and budgets require") from error
+        send_json(response, 201, document)
+
+    def _vector_get(self, response, ident: str) -> None:
+        from .vector_projects import VectorProjectNotFound
+
+        try:
+            document = self.vector_projects.get(ident)
+        except VectorProjectNotFound as error:
+            raise ApiError(404, str(error), "create the project, or open one that exists") from error
+        send_json(response, 200, document)
+
+    def _vector_update(self, request, response, ident: str) -> None:
+        from .vector_projects import (
+            MAX_BODY_BYTES,
+            VectorProjectInvalid,
+            VectorProjectNotFound,
+            VectorProjectStaleRevision,
+        )
+
+        self._limit(request, MAX_BODY_BYTES)
+        payload = json.loads(request.body() or b"{}")
+        if type(payload) is not dict or set(payload) != {"expectedRevision", "project"}:
+            raise ValueError(
+                'a vector project update is {"expectedRevision": <int>, "project": <object or JSON string>}',
+            )
+        try:
+            document = self.vector_projects.update(ident, payload["expectedRevision"], payload["project"])
+        except VectorProjectInvalid as error:
+            raise ApiError(400, str(error), "fix the project as the schema and budgets require") from error
+        except VectorProjectNotFound as error:
+            raise ApiError(404, str(error), "create the project, or open one that exists") from error
+        except VectorProjectStaleRevision as error:
+            raise ApiError(
+                409,
+                str(error),
+                "reload the project and retry with its current revision",
+                currentRevision=error.current,
+            ) from error
+        send_json(response, 200, document)
+
+    def _vector_catalog_publish(self, request, response) -> None:
+        from .vector_catalog import MAX_BODY_BYTES, VectorCatalogInvalid
+
+        self._limit(request, MAX_BODY_BYTES)
+        payload = json.loads(request.body() or b"{}")
+        if type(payload) is not dict or "component" not in payload:
+            raise ValueError(
+                'a catalog publish is {"component": <object or JSON string>, "componentId"?: <uuid>}',
+            )
+        if not set(payload) <= {"component", "componentId"}:
+            raise ValueError(
+                'a catalog publish is {"component": <object or JSON string>, "componentId"?: <uuid>}',
+            )
+        try:
+            entry = self.vector_catalog.publish(payload["component"], payload.get("componentId"))
+        except VectorCatalogInvalid as error:
+            raise ApiError(400, str(error), "fix the component as the catalog requires") from error
+        send_json(response, 201, entry)
+
+    def _vector_catalog_list(self, response) -> None:
+        send_json(response, 200, {"entries": self.vector_catalog.list()})
+
+    def _vector_catalog_get(self, response, revision_id: str) -> None:
+        from .vector_catalog import VectorCatalogNotFound
+
+        try:
+            entry = self.vector_catalog.get(revision_id)
+        except VectorCatalogNotFound as error:
+            raise ApiError(404, str(error), "publish the component, or open a revision that exists") from error
+        send_json(response, 200, entry)
+
+    def _vector_projection_routes(self, request, response, rest) -> None:
+        """``/api/v1/vector/projections``: publish, get, regenerate CAD-accurate exports."""
+        if len(rest) == 0:
+            return self._methods(request, {
+                "GET": lambda: self._vector_projection_list(response),
+                "POST": lambda: self._vector_projection_publish(request, response),
+            })
+        if len(rest) == 1 and rest[0]:
+            revision_id = rest[0]
+            return self._methods(request, {
+                "GET": lambda: self._vector_projection_get(response, revision_id),
+            })
+        if len(rest) == 2 and rest[0] and rest[1] == "regenerate":
+            revision_id = rest[0]
+            return self._methods(request, {
+                "POST": lambda: self._vector_projection_regenerate(request, response, revision_id),
+            })
+        raise ApiError(404, f"no route {request.path}", _ROUTES_HINT)
+
+    def _vector_projection_publish(self, request, response) -> None:
+        from .vector_projections import (
+            MAX_BODY_BYTES,
+            VectorProjectionInvalid,
+            export_file_projection,
+        )
+
+        self._limit(request, MAX_BODY_BYTES)
+        payload = json.loads(request.body() or b"{}")
+        if type(payload) is not dict:
+            raise ValueError(
+                'a projection publish is {"export": {...}} or {"file","view",...}',
+            )
+        try:
+            if "export" in payload:
+                if not set(payload) <= {"export", "assetId"}:
+                    raise ValueError(
+                        'a projection publish is {"export": {...}, "assetId"?: <uuid>}',
+                    )
+                entry = self.vector_projections.publish(
+                    payload["export"],
+                    asset_id=payload.get("assetId"),
+                )
+            elif "file" in payload:
+                allowed = {"file", "view", "hiddenLines", "name", "documentId", "documentRevision", "assetId"}
+                if not set(payload) <= allowed:
+                    raise ValueError(
+                        'a file projection is {"file","view", "hiddenLines"?, "name"?, '
+                        '"documentId"?, "documentRevision"?, "assetId"?}',
+                    )
+                view = payload.get("view")
+                if not isinstance(view, str) or not view:
+                    raise ValueError("view must be a non-empty string")
+                hidden = payload.get("hiddenLines", True)
+                if not isinstance(hidden, bool):
+                    raise ValueError("hiddenLines must be a boolean")
+                file_ref = payload.get("file")
+                if not isinstance(file_ref, str) or not file_ref:
+                    raise ValueError("file must be an absolute path string")
+                entry = export_file_projection(
+                    absolute_path(file_ref),
+                    view,
+                    hidden_lines=hidden,
+                    document_id=payload.get("documentId"),
+                    document_revision=payload.get("documentRevision"),
+                    name=payload.get("name"),
+                    store=self.vector_projections,
+                    asset_id=payload.get("assetId"),
+                )
+            else:
+                raise ValueError(
+                    'a projection publish is {"export": {...}} or {"file","view",...}',
+                )
+        except VectorProjectionInvalid as error:
+            raise ApiError(400, str(error), "fix the CAD projection export as required") from error
+        send_json(response, 201, entry)
+
+    def _vector_projection_list(self, response) -> None:
+        send_json(response, 200, {"entries": self.vector_projections.list()})
+
+    def _vector_projection_get(self, response, revision_id: str) -> None:
+        from .vector_projections import VectorProjectionNotFound
+
+        try:
+            entry = self.vector_projections.get(revision_id)
+        except VectorProjectionNotFound as error:
+            raise ApiError(404, str(error), "export the projection, or open a revision that exists") from error
+        send_json(response, 200, entry)
+
+    def _vector_projection_regenerate(self, request, response, revision_id: str) -> None:
+        from .vector_projections import (
+            MAX_BODY_BYTES,
+            VectorProjectionInvalid,
+            VectorProjectionNotFound,
+            VectorProjectionStaleRevision,
+        )
+
+        self._limit(request, MAX_BODY_BYTES)
+        payload = json.loads(request.body() or b"{}")
+        if type(payload) is not dict or "expectedRevision" not in payload:
+            raise ValueError(
+                'a projection regenerate is {"expectedRevision": <int>, "name"?: <string>}',
+            )
+        if not set(payload) <= {"expectedRevision", "name"}:
+            raise ValueError(
+                'a projection regenerate is {"expectedRevision": <int>, "name"?: <string>}',
+            )
+        try:
+            entry = self.vector_projections.regenerate(
+                revision_id,
+                payload["expectedRevision"],
+                name=payload.get("name"),
+            )
+        except VectorProjectionInvalid as error:
+            raise ApiError(400, str(error), "fix the CAD projection provenance as required") from error
+        except VectorProjectionNotFound as error:
+            raise ApiError(404, str(error), "export the projection, or open a revision that exists") from error
+        except VectorProjectionStaleRevision as error:
+            raise ApiError(
+                409,
+                str(error),
+                "reload the projection lineage and retry with its current revision",
+                currentRevision=error.current,
+            ) from error
+        send_json(response, 201, entry)
 
     # --- a kind's documents: /api/v1/documents/<kind>/<id>/... --------------------------
 

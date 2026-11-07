@@ -28,6 +28,7 @@ from cad_server.mcp.server import _AGENT_TOOLS, FOLLOWS, Server, local_path
 from cad_server.mcp.operations import START, STARTS, check_arguments
 from cad_server.mcp.tunnel import MAX_REPLY_BYTES
 from cad_server.mcp.ui import AppPage
+from cad_server.mcp.vector import VECTOR_TOOLS
 
 CODEX = {"name": "codex-mcp-client", "title": "Codex", "version": "0.159.0"}
 CLAUDE = {"name": "claude-ai", "version": "0.1.0"}
@@ -276,12 +277,16 @@ class TabServerTest(_Session):
                        if "entrypoints" in value.get("openai/ui", {})}
         self.assertEqual(entrypoints, {"cad_home": "global", "cad_tab": "thread", "cad_file": "file"})
         agent = {name for name, value in meta.items() if value.get("ui", {}).get("visibility") != ["app"]}
-        self.assertEqual(agent, {"cad_open", "cad_show", "cad_view", "cad_screenshot"} | START.keys())
+        self.assertEqual(agent, {"cad_open", "cad_show", "cad_view", "cad_screenshot"} | START.keys() | set(VECTOR_TOOLS))
         # The page's own: its sync, its answer to a capture, and the viewer's routes, which carry the rest.
         page = {name for name, value in meta.items() if value.get("ui", {}).get("visibility") == ["app"]} - set(entrypoints)
         self.assertEqual(page, {"cad_sync", "cad_capture_reply", "cad_http"})
         # All but the page's requests (its library, settings and telemetry answer among them) and the files the agent writes read.
-        self.assertEqual([name for name, tool in tools.items() if not tool["annotations"]["readOnlyHint"]], ["cad_http", "cad_export", "cad_snapshot"])
+        self.assertEqual(
+            [name for name, tool in tools.items() if not tool["annotations"]["readOnlyHint"]],
+            ["cad_http", "cad_export", "cad_snapshot", "vector_project_create", "vector_project_update",
+             "vector_catalog_publish", "vector_projection_publish", "vector_projection_regenerate"],
+        )
         uri = tools["cad_home"]["_meta"]["ui"]["resourceUri"]
         self.assertRegex(uri, r"^ui://cad/[0-9A-Za-z.+_-]+/[0-9a-f]{16}/app\.html$")
         self.assertEqual(tools["cad_open"]["_meta"]["ui"]["resourceUri"], uri)
@@ -629,7 +634,7 @@ class InlineServerTest(_Session):
         tools = {tool["name"]: tool for tool in self.server.handle("tools/list", {}, None)["tools"]}
         agent = {name for name, tool in tools.items() if tool.get("_meta", {}).get("ui", {}).get("visibility") != ["app"]}
         # A chat shows files: no home.
-        self.assertEqual(agent, {"cad_show", "cad_view", "cad_screenshot"} | START.keys())
+        self.assertEqual(agent, {"cad_show", "cad_view", "cad_screenshot"} | START.keys() | set(VECTOR_TOOLS))
         uri = tools["cad_show"]["_meta"]["ui"]["resourceUri"]
         self.assertFalse(any(key.startswith("openai/") for tool in tools.values() for key in tool.get("_meta", {})))
         self.assertEqual((tools["cad_view"]["inputSchema"]["required"], tools["cad_screenshot"]["inputSchema"]["required"]), (["view"], ["view"]))
@@ -875,7 +880,10 @@ class TextServerTest(_Session):
 
     def test_cad_show_opens_the_model_in_the_browser_and_says_so_with_its_url(self) -> None:
         tools = self.server.handle("tools/list", {}, None)["tools"]
-        self.assertEqual([(tool["name"], "_meta" in tool) for tool in tools], [("cad_show", False)] + [(name, False) for name in START])
+        self.assertEqual(
+            [(tool["name"], "_meta" in tool) for tool in tools],
+            [("cad_show", False)] + [(name, False) for name in START] + [(name, False) for name in VECTOR_TOOLS],
+        )
         self.assertIn("cannot show CAD views", self.initialized["instructions"])
         told = []
         self.server._browser_opened = told.append
@@ -1120,7 +1128,10 @@ class CodexExecTest(_Session):
     def test_a_server_codex_exec_launched_is_a_text_server_whatever_its_calls_say(self) -> None:
         # codex-cli 0.153 sends no turn metadata: the launcher alone says it.
         server = self.greet(CODEX_EXEC)
-        self.assertEqual([tool["name"] for tool in server.handle("tools/list", {}, None)["tools"]], ["cad_show", *START])
+        self.assertEqual(
+            [tool["name"] for tool in server.handle("tools/list", {}, None)["tools"]],
+            ["cad_show", *START, *VECTOR_TOOLS],
+        )
         shown = deliver(server.handle("tools/call", {"name": "cad_show", "arguments": {"source": self.bracket}},
                                       RequestContext(1, {"threadId": "t"})), self.record)["content"][0]["text"]
         self.assertTrue(shown.startswith("bracket.stl opened in your browser at http://127.0.0.1:3245/"), shown)

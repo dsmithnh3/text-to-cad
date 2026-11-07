@@ -27,8 +27,9 @@ def sources() -> list[Path]:
     found = []
     for tree in SOURCES:
         for path in sorted((ROOT / tree).rglob("*")):
-            if path.suffix in SUFFIXES and path.is_file() and not TESTS.search(path.name) \
-                    and "node_modules" not in path.parts:
+            # Declaration files have no runtime constructors (``constructor(...);``).
+            if path.suffix in SUFFIXES and path.is_file() and not path.name.endswith(".d.ts") \
+                    and not TESTS.search(path.name) and "node_modules" not in path.parts:
                 found.append(path)
     return found
 

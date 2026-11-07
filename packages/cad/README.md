@@ -443,6 +443,8 @@ src/cad/
                          #   *_validation.py, sdf_external.py, findings.py, xml_common.py)
   results.py             # what a `validate` verb returns: the JSON line protocol, typed
   eng_drawing.py         # @eng_drawing: Sheets and Views over a part, one PDF
+  cad_projection.py      # CAD-accurate orthographic/isometric HLR → SVG + provenance
+  vector_project.py      # Bounded Vector Studio project parse/validate
   flatten.py             # flat patterns: exact 2D geometry from a solid's planar faces
   geometry.py            # measurements of native geometry: closest points, overlap,
                          #   soundness, mass properties

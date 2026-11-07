@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from 'react';
-import { Maximize2 } from 'lucide-react';
+import { Box, Layers3, Maximize2 } from 'lucide-react';
 import { useAnalyticsConsent } from '@cad/ui/consent';
 import { translator, useI18n, useLanguage } from '@cad/ui/i18n';
 import { UpdateButton, useUpdate } from '@cad/ui/update';
@@ -22,6 +22,7 @@ import { createViewSync } from './host/sync';
 import { createTunnelClient, createTunnelFetch, TUNNEL_ORIGIN } from './host/tunnel';
 import ModelView, { type ViewReporter } from './ModelView';
 import { Banner } from './Notice';
+import VectorView from './VectorView';
 
 interface Showing { launch: Launch; sequence: number }
 
@@ -314,16 +315,36 @@ export default function App({ bridge, server, launch: initial, presentation = 't
     if (page) void openBrowserPage({ tunnel, direct: Boolean(direct), bridge, model, page });
   } : undefined, [browsable, pages, tunnel, direct, bridge]);
   const { launch } = showing;
+  // Host-level CAD ↔ Vector switch keeps CadViewer mounted (display:none) so engine state survives.
+  // File-handler surfaces stay CAD-only: the host's own tree is their navigation.
+  const [workspace, setWorkspace] = useState<'cad' | 'vector'>('cad');
+  const trWorkspace = translator(locale);
+  const switchWorkspace = (next: 'cad' | 'vector') => {
+    if (alone) return;
+    setWorkspace(next);
+  };
   if (superseded) {
     return <Frame bridge={bridge} context={context} insets={insets} inline={inline} floatingComposer={floatingComposer}><Superseded still={still} label={translator(locale)('cad.superseded')} /></Frame>;
   }
   return <Frame bridge={bridge} context={context} insets={insets} inline={inline} floatingComposer={floatingComposer}
     overlay={lost ? <Banner message={typeof lost === 'string' ? lost : lostNotice(translator(locale), presentation, bridge.hostInfo.name)} /> : null}>
-    <ModelView launch={launch} sequence={showing.sequence} alone={alone} bridge={bridge} client={client} tunnel={tunnel}
-      tabStore={tabStore} live={live} links={links} appSettings={appSettings}
-      update={updater.notice || updater.phase.phase !== 'idle' ? <UpdateButton notice={updater.notice} phase={updater.phase} onUpdate={updater.update} /> : null}
-      fullSize={inline && context.availableDisplayModes?.includes('fullscreen') !== false ? <FullSizeButton bridge={bridge} /> : null}
-      openInBrowser={openInBrowser} engineOrigin={engineOrigin ?? undefined}
-      colorScheme={colorScheme} theme={theme} locale={locale} language={language} platform={initial.platform || 'darwin'} reporter={reporter} sync={sync} chat={chat} />
+    <div className="flex h-full min-h-0 flex-col">
+      {alone ? null : (
+        <nav aria-label={trWorkspace('vector.workspaceModes')} className="flex h-10 shrink-0 items-center gap-1 border-b border-border bg-background px-3">
+          <Button size="xs" variant={workspace === 'cad' ? 'secondary' : 'ghost'} onClick={() => switchWorkspace('cad')} aria-current={workspace === 'cad' ? 'page' : undefined}><Box/> CAD</Button>
+          <Button size="xs" variant={workspace === 'vector' ? 'secondary' : 'ghost'} onClick={() => switchWorkspace('vector')} aria-current={workspace === 'vector' ? 'page' : undefined}><Layers3/> {trWorkspace('vector.workspaceTitle')}</Button>
+          <span className="ml-auto text-xs text-muted-foreground">{trWorkspace('vector.independent')}</span>
+        </nav>
+      )}
+      <div className="min-h-0 flex-1" style={{ display: alone || workspace === 'cad' ? 'block' : 'none' }}>
+        <ModelView launch={launch} sequence={showing.sequence} alone={alone} bridge={bridge} client={client} tunnel={tunnel}
+          tabStore={tabStore} live={live} links={links} appSettings={appSettings}
+          update={updater.notice || updater.phase.phase !== 'idle' ? <UpdateButton notice={updater.notice} phase={updater.phase} onUpdate={updater.update} /> : null}
+          fullSize={inline && context.availableDisplayModes?.includes('fullscreen') !== false ? <FullSizeButton bridge={bridge} /> : null}
+          openInBrowser={openInBrowser} engineOrigin={engineOrigin ?? undefined}
+          colorScheme={colorScheme} theme={theme} locale={locale} language={language} platform={initial.platform || 'darwin'} reporter={reporter} sync={sync} chat={chat} />
+      </div>
+      {!alone && workspace === 'vector' ? <div className="min-h-0 flex-1"><VectorView locale={locale} tunnel={tunnel} /></div> : null}
+    </div>
   </Frame>;
 }

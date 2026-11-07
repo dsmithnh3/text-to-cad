@@ -161,6 +161,10 @@ which points both at the checkout.
   `docs/install.md` alone, never in the docs app (`apps/docs/README.md`).
 - Keep root guidance short. Put domain workflows, CLI details, and validation
   policy in the relevant `skills/<skill>/SKILL.md` or `references/` file.
+- Development loops: browser Viewer hot reload via `scripts/dev/vector-studio.sh`;
+  embedded Codex plugin builds are snapshots (no hot reload, no automatic watcher) —
+  refresh deliberately with `scripts/dev/refresh_codex_plugin.py`. Details:
+  [`docs/codex-development.md`](docs/codex-development.md).
 - Keep relevant Markdown docs current when changing behavior, commands, or repo
   layout, but do not bloat `AGENTS.md`; use it only for durable repo-level
   rules and pointers.

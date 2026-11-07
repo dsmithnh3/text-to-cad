@@ -14,13 +14,20 @@
         "dfam-check",
         "gcode",
         "bambu-labs",
-        "sendcutsend"
+        "sendcutsend",
+        "cad-to-isometric-svg",
+        "cold-room-vector-layout",
+        "refrigeration-equipment"
       ]
     },
     {
       "title": "Robotics",
       "description": "Robot descriptions for ROS, MoveIt2 and Gazebo.",
-      "skills": ["urdf", "srdf", "sdf"]
+      "skills": [
+        "urdf",
+        "srdf",
+        "sdf"
+      ]
     }
   ]
 }
