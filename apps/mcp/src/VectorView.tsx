@@ -7,6 +7,7 @@ import {
   VectorWorkspace,
   createBrowserVectorCatalogTransport,
   createBrowserVectorProjectTransport,
+  createBrowserVectorProjectionTransport,
 } from '@cad/ui/vector';
 import { useMemo } from 'react';
 import { TUNNEL_ORIGIN } from './host/tunnel';
@@ -20,11 +21,16 @@ export default function VectorView({ locale, tunnel }: { locale: string; tunnel:
     () => createBrowserVectorCatalogTransport(tunnel, { origin: TUNNEL_ORIGIN }),
     [tunnel],
   );
+  const projections = useMemo(
+    () => createBrowserVectorProjectionTransport(tunnel, { origin: TUNNEL_ORIGIN }),
+    [tunnel],
+  );
   return (
     <VectorWorkspace
       locale={locale}
       projectStore={projectStore}
       catalog={catalog}
+      projections={projections}
     />
   );
 }

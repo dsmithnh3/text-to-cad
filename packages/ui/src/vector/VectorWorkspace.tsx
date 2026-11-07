@@ -11,6 +11,11 @@ import {
   type VectorCatalogEntry,
   type VectorCatalogTransport,
 } from './vectorCatalog.js';
+import {
+  listProjectionRevisions,
+  type VectorProjectionEntry,
+  type VectorProjectionTransport,
+} from './vectorProjections.js';
 import { persistCommittedDraft, readVectorDraft, type VectorDraftStorage } from './vectorDraft.js';
 import {
   parseVectorProject,
@@ -79,6 +84,8 @@ export type VectorWorkspaceProps = {
   projectStore?: VectorProjectStoreTransport | null;
   /** Immutable catalog transport. Library entries looked up by revision id. */
   catalog?: VectorCatalogTransport | null;
+  /** CAD-accurate projection revisions (OCCT HLR). Shown in Library beside catalog. */
+  projections?: VectorProjectionTransport | null;
   /** Optional host library assets (Vite glob, etc.). */
   libraryAssets?: readonly Asset[];
   /** Seed document id to load from the durable store (draft overlay still wins when present). */
@@ -94,6 +101,7 @@ export default function VectorWorkspace({
   draftStorage,
   projectStore = null,
   catalog = null,
+  projections = null,
   libraryAssets = [],
   documentId = null,
   download = defaultDownload,
@@ -118,6 +126,7 @@ export default function VectorWorkspace({
   const [sourceOpen, setSourceOpen] = useState(false);
   const [sourceDraft, setSourceDraft] = useState('');
   const [durable, setDurable] = useState<VectorWorkspaceDocument | null>(null);
+  const [projectionEntries, setProjectionEntries] = useState<VectorProjectionEntry[]>([]);
   const durableRef = useRef<VectorWorkspaceDocument | null>(null);
   durableRef.current = durable;
   const [catalogEntries, setCatalogEntries] = useState<VectorCatalogEntry[]>([]);
@@ -129,9 +138,20 @@ export default function VectorWorkspace({
     () => catalogEntries.map((entry) => ({ ...entry.component, id: entry.revisionId })),
     [catalogEntries],
   );
+  const projectionAssets = useMemo(
+    () => projectionEntries.map((entry) => ({
+      ...entry.asset,
+      id: entry.revisionId,
+      category: entry.asset.category || 'CAD projection',
+      name: entry.projection?.view
+        ? `${entry.asset.name} · ${entry.projection.viewClass || entry.projection.view}`
+        : entry.asset.name,
+    })),
+    [projectionEntries],
+  );
   const assetMap = useMemo(
-    () => new Map([...builtin, ...libraryAssets, ...catalogAssets, ...project.assets].map((a) => [a.id, a])),
-    [libraryAssets, catalogAssets, project.assets],
+    () => new Map([...builtin, ...libraryAssets, ...catalogAssets, ...projectionAssets, ...project.assets].map((a) => [a.id, a])),
+    [libraryAssets, catalogAssets, projectionAssets, project.assets],
   );
 
   useEffect(() => {
@@ -180,7 +200,31 @@ export default function VectorWorkspace({
     return () => { cancelled = true; };
   }, [catalog]);
 
-  const assets = [...builtin, ...libraryAssets, ...catalogAssets, ...project.assets].filter(
+  useEffect(() => {
+    if (!projections) return;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const entries = await listProjectionRevisions(projections);
+        if (!cancelled) setProjectionEntries(entries);
+      } catch {
+        /* projections optional for offline drafts */
+      }
+    };
+    void load();
+    const onPublished = () => { void load(); };
+    try {
+      window.addEventListener('cad-vector-projection-published', onPublished);
+    } catch { /* non-DOM host */ }
+    return () => {
+      cancelled = true;
+      try {
+        window.removeEventListener('cad-vector-projection-published', onPublished);
+      } catch { /* non-DOM host */ }
+    };
+  }, [projections]);
+
+  const assets = [...builtin, ...libraryAssets, ...catalogAssets, ...projectionAssets, ...project.assets].filter(
     (a) => (a.name + ' ' + a.category).toLowerCase().includes(filter.toLowerCase()),
   );
 
@@ -252,7 +296,8 @@ export default function VectorWorkspace({
     const ensureAsset = project.assets.some((existing) => existing.id === asset.id)
       || builtin.some((existing) => existing.id === asset.id)
       || libraryAssets.some((existing) => existing.id === asset.id)
-      || catalogAssets.some((existing) => existing.id === asset.id);
+      || catalogAssets.some((existing) => existing.id === asset.id)
+      || projectionAssets.some((existing) => existing.id === asset.id);
     commit((p) => ({
       ...p,
       assets: ensureAsset ? p.assets : [...p.assets, asset],
@@ -556,7 +601,7 @@ export default function VectorWorkspace({
           <Button size="sm" variant="outline" onClick={() => { const idx = project.items.findIndex((i) => i.id === selected); if (idx > 0) commit((p) => { const a = [...p.items]; [a[idx - 1], a[idx]] = [a[idx], a[idx - 1]]; return { ...p, items: a }; }); }}><ChevronDown/> {tr('vector.backward')}</Button></div>
           <p className="vs-muted">{tr('vector.vectorNote')}</p>
         </div> : <div className="vs-properties"><p className="vs-muted">{tr('vector.emptySelect')}</p></div>}
-        <div className="vs-inspector-title border-t border-border">{tr('vector.workflow')}</div><div className="vs-properties"><p className="vs-muted">{tr('vector.cadIndependent')}</p><p className="vs-muted">{tr('vector.projectNote')}</p></div>
+        <div className="vs-inspector-title border-t border-border">{tr('vector.workflow')}</div><div className="vs-properties"><p className="vs-muted">{tr('vector.cadIndependent')}</p><p className="vs-muted">{tr('vector.projectNote')}</p><p className="vs-muted">{tr('vector.drawingHandoff')}</p></div>
       </aside>
     </div>
   </div>;

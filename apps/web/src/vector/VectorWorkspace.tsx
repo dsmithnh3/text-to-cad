@@ -6,6 +6,7 @@ import {
   VectorWorkspace as SharedVectorWorkspace,
   createBrowserVectorCatalogTransport,
   createBrowserVectorProjectTransport,
+  createBrowserVectorProjectionTransport,
   type VectorAsset,
 } from '@cad/ui/vector';
 import { useMemo } from 'react';
@@ -33,6 +34,7 @@ function sessionDraftStorage() {
 export default function VectorWorkspace({ locale }: { locale: string }) {
   const projectStore = useMemo(() => createBrowserVectorProjectTransport(), []);
   const catalog = useMemo(() => createBrowserVectorCatalogTransport(), []);
+  const projections = useMemo(() => createBrowserVectorProjectionTransport(), []);
   const draftStorage = useMemo(() => sessionDraftStorage(), []);
   return (
     <SharedVectorWorkspace
@@ -40,6 +42,7 @@ export default function VectorWorkspace({ locale }: { locale: string }) {
       libraryAssets={bundledAssets}
       projectStore={projectStore}
       catalog={catalog}
+      projections={projections}
       draftStorage={draftStorage}
     />
   );

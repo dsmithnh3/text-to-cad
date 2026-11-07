@@ -70,6 +70,26 @@ export type {
   VectorCatalogTransport,
 } from './vectorCatalog.js';
 
+export {
+  PROJECTION_PUBLISH_VIEWS,
+  VECTOR_PROJECTIONS_ROUTE,
+  VectorProjectionClientError,
+  createBrowserVectorProjectionTransport,
+  getProjectionRevision,
+  listProjectionRevisions,
+  publishProjection,
+  regenerateProjection,
+} from './vectorProjections.js';
+export type {
+  ProjectionPublishView,
+  VectorProjectionEntry,
+  VectorProjectionErrorCode,
+  VectorProjectionProvenance,
+  VectorProjectionPublishInput,
+  VectorProjectionResponse,
+  VectorProjectionTransport,
+} from './vectorProjections.js';
+
 export { isolateSvg, sanitizeSvg } from './svgSafety.js';
 export {
   EDITABLE_TAGS,
