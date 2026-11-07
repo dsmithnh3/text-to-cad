@@ -270,6 +270,15 @@ which points both at the checkout.
 - Do not commit `.venv/`, `node_modules/`, caches, `tmp/`, local credentials, or
   printer config.
 
+## Cursor Cloud specific instructions
+
+- Cloud Agent Builds run `.cursor/install.sh` via `.cursor/environment.json`.
+  That script prepares Python 3.14 `.venv`, the editable packages, Playwright's
+  Chromium shell, `node_modules`, and the Viewer client build.
+- Prefer `./.venv/bin/python` and the registered `cad` command from that install.
+  Start the CAD engine with `cad` when a task needs it; do not put it in
+  `install` or a boot `start` script.
+
 ## Checks
 
 Run the smallest path-targeted check that covers the change. Use broad wrappers
