@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import threading
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -29,15 +30,19 @@ __all__ = [
     "DOCUMENT",
     "FOLDER",
     "MAX_BODY_BYTES",
+    "DocumentPathResolver",
     "VectorProjectionImmutable",
     "VectorProjectionInvalid",
     "VectorProjectionNotFound",
     "VectorProjectionStaleRevision",
     "VectorProjectionStore",
     "VectorProjectionStoreError",
+    "export_document_projection",
     "export_file_projection",
     "reproject_from_provenance",
 ]
+
+DocumentPathResolver = Callable[[str], str | Path]
 
 FOLDER = "vector-projections"
 DOCUMENT = "revision.json"
@@ -111,9 +116,15 @@ def _validate_publish_payload(payload: Any) -> tuple[dict[str, Any], dict[str, A
 class VectorProjectionStore:
     """File-backed immutable projection assets under ``<state>/vector-projections/``."""
 
-    def __init__(self, root: Path | None = None) -> None:
+    def __init__(
+        self,
+        root: Path | None = None,
+        *,
+        resolve_document_path: DocumentPathResolver | None = None,
+    ) -> None:
         self.root = Path(root) if root is not None else state_dir() / FOLDER
         self._lock = threading.Lock()
+        self.resolve_document_path = resolve_document_path
 
     def publish(
         self,
@@ -176,12 +187,16 @@ class VectorProjectionStore:
 
         ``expected_revision`` must match the asset lineage's current highest
         revision. Prior revisions are never rewritten. Requires
-        ``provenance.source.path`` (STEP/XBF) so the shape can be reloaded.
+        ``provenance.source.path`` (STEP/XBF) or a resolvable
+        ``provenance.source.documentId`` when a document path resolver is set.
         """
         if not isinstance(expected_revision, int) or isinstance(expected_revision, bool) or expected_revision < 1:
             raise VectorProjectionInvalid("expectedRevision must be a positive integer")
         prior = self.get(revision_id)
-        export = reproject_from_provenance(prior["projection"])
+        export = reproject_from_provenance(
+            prior["projection"],
+            resolve_document_path=self.resolve_document_path,
+        )
         label = name if name is not None else prior["asset"]["name"]
         asset_id = prior["assetId"]
         asset_body, projection, _ = _validate_publish_payload(
@@ -295,11 +310,15 @@ class VectorProjectionStore:
             write_bytes_atomic(path, payload)
 
 
-def reproject_from_provenance(provenance: Any) -> CadProjectionExport:
+def reproject_from_provenance(
+    provenance: Any,
+    *,
+    resolve_document_path: DocumentPathResolver | None = None,
+) -> CadProjectionExport:
     """Rebuild a CAD-accurate SVG from stored projection provenance.
 
-    Requires ``source.path`` pointing at a readable STEP/XBF. Document-id-only
-    provenance cannot be regenerated until a document resolver is wired.
+    Prefers ``source.path`` (STEP/XBF). When only ``source.documentId`` is set,
+    ``resolve_document_path`` must map that id to a readable STEP/XBF path.
     """
     try:
         projection = parse_projection_provenance(provenance)
@@ -307,16 +326,36 @@ def reproject_from_provenance(provenance: Any) -> CadProjectionExport:
         raise VectorProjectionInvalid(str(error)) from error
     source = projection["source"]
     path = source.get("path")
+    document_id = source.get("documentId")
     if not isinstance(path, str) or not path:
-        raise VectorProjectionInvalid(
-            "regeneration requires provenance.source.path (document-only sources are not resolvable)",
-        )
+        if not isinstance(document_id, str) or not document_id:
+            raise VectorProjectionInvalid(
+                "regeneration requires provenance.source.path or provenance.source.documentId",
+            )
+        if resolve_document_path is None:
+            raise VectorProjectionInvalid(
+                "regeneration requires provenance.source.path "
+                "(document-only sources need a document path resolver)",
+            )
+        try:
+            resolved = resolve_document_path(document_id)
+        except VectorProjectionInvalid:
+            raise
+        except Exception as error:  # noqa: BLE001 - surface resolver failures as invalid provenance
+            raise VectorProjectionInvalid(
+                f"could not resolve document {document_id}: {error}",
+            ) from error
+        path = str(resolved)
+        if not path:
+            raise VectorProjectionInvalid(
+                f"document path resolver returned an empty path for {document_id}",
+            )
     try:
         return project_file_to_svg(
             path,
             projection["view"],
             hidden_lines=projection["hiddenLines"],
-            document_id=source.get("documentId"),
+            document_id=document_id if isinstance(document_id, str) else None,
             document_revision=source.get("documentRevision"),
         )
     except CadProjectionError as error:
@@ -347,3 +386,37 @@ def export_file_projection(
         raise VectorProjectionInvalid(str(error)) from error
     target = store if store is not None else VectorProjectionStore()
     return target.publish_export(export, name=name, asset_id=asset_id)
+
+
+def export_document_projection(
+    document_id: str,
+    view: str,
+    *,
+    resolve_document_path: DocumentPathResolver,
+    hidden_lines: bool = True,
+    document_revision: str | None = None,
+    name: str | None = None,
+    store: VectorProjectionStore | None = None,
+    asset_id: str | None = None,
+) -> dict[str, Any]:
+    """Resolve a held document id to its STEP/XBF path, project, and publish."""
+    if not isinstance(document_id, str) or not document_id:
+        raise VectorProjectionInvalid("documentId must be a non-empty string")
+    try:
+        path = resolve_document_path(document_id)
+    except VectorProjectionInvalid:
+        raise
+    except Exception as error:  # noqa: BLE001 - surface resolver failures as invalid publish
+        raise VectorProjectionInvalid(
+            f"could not resolve document {document_id}: {error}",
+        ) from error
+    return export_file_projection(
+        path,
+        view,
+        hidden_lines=hidden_lines,
+        document_id=document_id,
+        document_revision=document_revision,
+        name=name,
+        store=store,
+        asset_id=asset_id,
+    )

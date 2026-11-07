@@ -66,12 +66,21 @@ export default {
   "vector.workflow": "Workflow",
   "vector.cadIndependent": "CAD and Vector modes are independent. Generate STEP / XBF / GLB through the original CAD workflow; import projected SVGs into this workspace to arrange facilities or equipment.",
   "vector.projectNote": "Projects use a versioned JSON schema. The extracted asset library stays local to your fork.",
+  "vector.drawingHandoff": "For dimensioned production drawings or cut DXF, keep using the engineering-drawing and DXF skills on the CAD model — projected SVG is composition, not a manufacturing drawing.",
   "vector.add": "Add",
 
   "export.button": "Export",
   "export.preparing": "Preparing {name}…",
   "export.dismiss": "Dismiss export status",
   "export.failed": "Export failed",
+  "export.projection.button": "Publish CAD projection",
+  "export.projection.preparing": "Projecting {name}…",
+  "export.projection.published": "Published {name} — open Vector Studio Library to place it",
+  "export.projection.failed": "CAD projection publish failed",
+  "export.projection.iso": "Isometric",
+  "export.projection.front": "Front orthographic",
+  "export.projection.top": "Top orthographic",
+  "export.projection.right": "Right orthographic",
 
   // The page before the viewer answers (`apps/web`'s starting view).
   "app.start.notAnswering": "The CAD Viewer is not answering",

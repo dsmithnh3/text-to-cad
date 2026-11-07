@@ -8,8 +8,15 @@ import { Toaster } from '../primitives/sonner.jsx';
 import { useI18n } from '../i18n/index.js';
 import { useViewerMobile } from '../file-viewer/responsive.js';
 import { ExportContext, type ExportView } from './context.js';
-import { exportChoices, type ExportChoice } from './formats.js';
+import { canPublishCadProjection, exportChoices, type ExportChoice } from './formats.js';
 import { useControlUsage } from '../usage/controls.js';
+import {
+  PROJECTION_PUBLISH_VIEWS,
+  createBrowserVectorProjectionTransport,
+  publishProjection,
+  type ProjectionPublishView,
+} from '../vector/vectorProjections.js';
+import { isDocumentId } from '@cad/core/lib/cadRefs.js';
 
 type Translate = ReturnType<typeof useI18n>['t'];
 const message = (error: unknown) => error instanceof Error ? error.message : String(error);
@@ -163,15 +170,64 @@ export function ExportControls({ service, downloads, file, children }: {
     const stem = (displayed.name.split('::').pop() || 'model').replace(/\.[^.]+$/, '').replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').slice(0, 100);
     start({ request, filename: (stem || 'model') + choice.extension });
   };
+  const publishView = (view: ProjectionPublishView) => {
+    if (!displayed) return;
+    usage.used(`projection_${view}`);
+    const id = `projection-${crypto.randomUUID()}`;
+    const stem = (displayed.name.split('::').pop() || 'model').replace(/\.[^.]+$/, '').replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').slice(0, 100);
+    const labelFor = PROJECTION_PUBLISH_VIEWS.find((entry) => entry.view === view);
+    const viewLabel = labelFor ? t(labelFor.labelKey) : view;
+    toast.loading(t('export.projection.preparing', { name: viewLabel }), { id });
+    const transport = createBrowserVectorProjectionTransport();
+    const body = {
+      view,
+      hiddenLines: true,
+      name: `${stem || 'model'} · ${viewLabel}`,
+      documentId: displayed.doc || (isDocumentId(displayed.file) ? displayed.file : undefined),
+      documentRevision: displayed.revision || undefined,
+      file: !isDocumentId(displayed.file) ? displayed.file : undefined,
+    };
+    void publishProjection(transport, body)
+      .then((entry) => {
+        toast.success(t('export.projection.published', { name: entry.asset.name }), { id, duration: 6000 });
+        try {
+          window.dispatchEvent(new CustomEvent('cad-vector-projection-published', { detail: entry }));
+        } catch { /* non-DOM host */ }
+      })
+      .catch((error) => {
+        toast.error(error instanceof Error ? error.message : t('export.projection.failed'), {
+          id,
+          duration: Infinity,
+          closeButton: true,
+        });
+      });
+  };
   const enabled = Boolean(service && downloads);
   const label = t('export.button');
+  const projectionLabel = t('export.projection.button');
+  const showProjection = Boolean(displayed && canPublishCadProjection(displayed.file));
   // The file menu's Export: a submenu of the formats, a choice closing the menu and starting that export.
-  const menu = enabled && choices.length ? <DropdownMenuSub>
+  const exportMenu = enabled && choices.length ? <DropdownMenuSub>
     <DropdownMenuSubTrigger data-export-menu="">{label}</DropdownMenuSubTrigger>
     <DropdownMenuSubContent aria-label={label}>
       {choices.map(choice => <DropdownMenuItem key={choice.format} onSelect={() => begin(choice)} data-export-format={choice.format}>{choice.label}</DropdownMenuItem>)}
     </DropdownMenuSubContent>
   </DropdownMenuSub> : null;
+  const projectionMenu = enabled && showProjection ? <DropdownMenuSub>
+    <DropdownMenuSubTrigger data-projection-menu="">{projectionLabel}</DropdownMenuSubTrigger>
+    <DropdownMenuSubContent aria-label={projectionLabel}>
+      {PROJECTION_PUBLISH_VIEWS.map((entry) => (
+        <DropdownMenuItem
+          key={entry.view}
+          onSelect={() => publishView(entry.view)}
+          data-projection-view={entry.view}
+        >
+          {t(entry.labelKey)}
+        </DropdownMenuItem>
+      ))}
+    </DropdownMenuSubContent>
+  </DropdownMenuSub> : null;
+  const menu = exportMenu || projectionMenu ? <>{exportMenu}{projectionMenu}</> : null;
   const overlay = enabled ? <ExportToaster /> : null;
   return <ExportContext.Provider value={enabled ? setSource : null}>{children({ menu, overlay })}</ExportContext.Provider>;
 }

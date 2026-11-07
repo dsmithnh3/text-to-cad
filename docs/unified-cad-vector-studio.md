@@ -20,9 +20,12 @@ Use the **Vector Studio** tab (CAD Viewer) or the MCP `VectorView` (CAD app / em
 
 ### CAD → Vector
 1. Generate a model with the original CAD skill and build123d.
-2. Prefer **CAD-accurate** orthographic or isometric projection via `/api/v1/vector/projections` or MCP `vector_projection_publish` (STEP/XBF path + view). Provenance-backed regeneration uses `vector_projection_regenerate` when `expectedRevision` matches the lineage tip and `source.path` is present.
+2. Prefer **CAD-accurate** orthographic or isometric projection:
+   - Viewer File ⋯ → **Publish CAD projection** (iso / front / top / right), or
+   - `/api/v1/vector/projections` / MCP `vector_projection_publish` with STEP/XBF `file`+`view` or held `documentId`+`view`.
+   Provenance-backed regeneration uses `vector_projection_regenerate` when `expectedRevision` matches the lineage tip; `source.path` is preferred, and document-id-only provenance regenerates while the engine still holds that document.
 3. Optionally use **Import GLB** in the browser for an **illustrative** mesh polygon asset. Do **not** treat mesh-projected SVG as a precision manufacturing drawing.
-4. Compose and export editable SVG in Vector Studio.
+4. Compose and export editable SVG in Vector Studio (Library lists catalog revisions and published CAD projections).
 5. Use CAD's engineering-drawing and DXF skills, not Vector Studio, when dimensioned production output is required.
 
 ## Local source-derived library (not public repo)
@@ -94,7 +97,7 @@ Agents may use only the catalogued Vector tools:
 Not MCP-driven today: browser **Import GLB** (illustrative mesh), Viewer file-picker SVG import, and any claim of parametric CAD↔vector round-trip or certified equipment sizing. Do not advertise agent control the tool catalog cannot perform.
 
 ## Known limitations
-- Document-id-only projection provenance cannot regenerate yet; `vector_projection_regenerate` requires `provenance.source.path` (STEP/XBF). Path-backed exports regenerate normally.
+- Document-id-only projection regeneration needs the engine to still hold that document (path resolved from the held listing). Path-backed exports regenerate without a live hold.
 - Illustrative GLB mesh projection remains distinct from CAD-accurate HLR and must stay labeled.
 - Projected SVG is not a substitute for engineering-drawing / DXF deliverables.
 

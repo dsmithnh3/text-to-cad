@@ -19,7 +19,9 @@ you chose to override a value.
 **The output is one PDF.** That is what a shop receives and what every
 operating system opens. No DXF is written, nothing is paired or linked, and
 there is no CLI: the script is the interface. Cut layouts and flat patterns are
-toolpaths, not documents, and a different job.
+toolpaths, not documents, and a different job. Vector Studio CAD projections
+(isometric / orthographic SVG) are composition assets, not a substitute for
+this sheet — hand off here when the user needs dimensioned shop drawings.
 
 ## Setup
 

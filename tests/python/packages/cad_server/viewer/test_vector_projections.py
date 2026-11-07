@@ -176,6 +176,41 @@ class VectorProjectionStoreTests(unittest.TestCase):
         with self.assertRaises(VectorProjectionInvalid):
             self.store.regenerate(published["revisionId"], expected_revision=1)
 
+    def test_regenerate_resolves_document_id_via_resolver(self) -> None:
+        step = _write_step(Path(self.tmp.name) / "held.step")
+        resolved: list[str] = []
+
+        def resolve(document_id: str):
+            resolved.append(document_id)
+            self.assertEqual(document_id, "doc-held")
+            return step
+
+        store = VectorProjectionStore(
+            Path(self.tmp.name) / "vector-projections-doc",
+            resolve_document_path=resolve,
+        )
+        published = store.publish(
+            {
+                "name": "doc-only",
+                "svg": project_shape_to_svg(_box(), "front", document_id="doc-held").svg,
+                "projection": {
+                    "kind": KIND,
+                    "backend": "hlr-occt",
+                    "view": "front",
+                    "viewClass": "orthographic",
+                    "hiddenLines": True,
+                    "source": {"documentId": "doc-held"},
+                },
+            },
+        )
+        second = store.regenerate(published["revisionId"], expected_revision=1)
+        self.assertEqual(resolved, ["doc-held"])
+        self.assertEqual(second["revision"], 2)
+        self.assertEqual(second["assetId"], published["assetId"])
+        self.assertEqual(second["projection"]["source"]["documentId"], "doc-held")
+        self.assertEqual(second["projection"]["source"]["path"], str(step.resolve()))
+        self.assertIn("CAD-accurate OCCT hidden-line projection", second["asset"]["svg"])
+
 
 class VectorProjectionRouteTests(unittest.TestCase):
     def setUp(self) -> None:

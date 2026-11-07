@@ -287,7 +287,10 @@ class CadApp:
         # Immutable Vector component catalog (publish once; consume by revision id).
         self.vector_catalog = VectorCatalogStore()
         # Immutable CAD-accurate projection asset revisions (orthographic / isometric HLR).
-        self.vector_projections = VectorProjectionStore()
+        # Document-id provenance regenerates by resolving held engine documents to paths.
+        self.vector_projections = VectorProjectionStore(
+            resolve_document_path=self._resolve_projection_document_path,
+        )
         self._exports = None
         self.start = to_posix_path(os.path.abspath(start if start is not None else _working_folder()))
         # Whether this computer has a file chooser for the home's Open (``POST /api/v1/local/pick``).
@@ -1007,11 +1010,11 @@ class CadApp:
                     payload["export"],
                     asset_id=payload.get("assetId"),
                 )
-            elif "file" in payload:
+            elif "file" in payload or "documentId" in payload:
                 allowed = {"file", "view", "hiddenLines", "name", "documentId", "documentRevision", "assetId"}
                 if not set(payload) <= allowed:
                     raise ValueError(
-                        'a file projection is {"file","view", "hiddenLines"?, "name"?, '
+                        'a file projection is {"file"|"documentId","view", "hiddenLines"?, "name"?, '
                         '"documentId"?, "documentRevision"?, "assetId"?}',
                     )
                 view = payload.get("view")
@@ -1021,21 +1024,36 @@ class CadApp:
                 if not isinstance(hidden, bool):
                     raise ValueError("hiddenLines must be a boolean")
                 file_ref = payload.get("file")
-                if not isinstance(file_ref, str) or not file_ref:
-                    raise ValueError("file must be an absolute path string")
-                entry = export_file_projection(
-                    absolute_path(file_ref),
-                    view,
-                    hidden_lines=hidden,
-                    document_id=payload.get("documentId"),
-                    document_revision=payload.get("documentRevision"),
-                    name=payload.get("name"),
-                    store=self.vector_projections,
-                    asset_id=payload.get("assetId"),
-                )
+                document_id = payload.get("documentId")
+                from .vector_projections import export_document_projection
+
+                if isinstance(file_ref, str) and file_ref:
+                    entry = export_file_projection(
+                        absolute_path(file_ref),
+                        view,
+                        hidden_lines=hidden,
+                        document_id=document_id if isinstance(document_id, str) else None,
+                        document_revision=payload.get("documentRevision"),
+                        name=payload.get("name"),
+                        store=self.vector_projections,
+                        asset_id=payload.get("assetId"),
+                    )
+                elif isinstance(document_id, str) and document_id:
+                    entry = export_document_projection(
+                        document_id,
+                        view,
+                        resolve_document_path=self._resolve_projection_document_path,
+                        hidden_lines=hidden,
+                        document_revision=payload.get("documentRevision"),
+                        name=payload.get("name"),
+                        store=self.vector_projections,
+                        asset_id=payload.get("assetId"),
+                    )
+                else:
+                    raise ValueError("file must be an absolute path string, or documentId a held document")
             else:
                 raise ValueError(
-                    'a projection publish is {"export": {...}} or {"file","view",...}',
+                    'a projection publish is {"export": {...}} or {"file"|"documentId","view",...}',
                 )
         except VectorProjectionInvalid as error:
             raise ApiError(400, str(error), "fix the CAD projection export as required") from error
@@ -1435,6 +1453,33 @@ class CadApp:
         from cad_server.engine.models import delete
 
         delete(self.recents.registry, ident)
+
+    def _resolve_projection_document_path(self, document_id: str):
+        """Map a held engine document id to its on-disk STEP/XBF path for projection regenerate/publish."""
+        from .vector_projections import VectorProjectionInvalid
+
+        if not isinstance(document_id, str) or not document_id:
+            raise VectorProjectionInvalid("documentId must be a non-empty string")
+        server = getattr(self.engine_documents, "server", None)
+        if server is None:
+            raise VectorProjectionInvalid(
+                f"document {document_id} cannot be resolved (engine documents are unavailable)",
+            )
+        listing = server.listing(every=True)
+        for entry in listing:
+            if not isinstance(entry, dict):
+                continue
+            if entry.get("id") != document_id:
+                continue
+            path = entry.get("path")
+            if isinstance(path, str) and path:
+                return path
+            raise VectorProjectionInvalid(
+                f"document {document_id} has no readable STEP/XBF path",
+            )
+        raise VectorProjectionInvalid(
+            f"document {document_id} is not held; reopen it before regenerating the projection",
+        )
 
     def _thumbnail(self, response, ident):
         """``GET /api/v1/documents/<id>/thumbnail``: the picture the library keeps of the document, by

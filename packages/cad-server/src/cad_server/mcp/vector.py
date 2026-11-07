@@ -23,6 +23,7 @@ from cad_server.viewer.vector_projections import (
     VectorProjectionNotFound,
     VectorProjectionStaleRevision,
     VectorProjectionStore,
+    export_document_projection,
     export_file_projection,
 )
 from cad_server.viewer.vector_projects import (
@@ -357,6 +358,7 @@ def _publish_projection(
                     'vector_projection_publish with export accepts only export and optional assetId',
                 )
             return projections.publish(export, asset_id=asset_id)
+        document_id = arguments.get("documentId")
         if isinstance(file_ref, str) and file_ref:
             allowed = {
                 "file",
@@ -382,14 +384,49 @@ def _publish_projection(
                 file_ref,
                 view,
                 hidden_lines=hidden,
-                document_id=arguments.get("documentId"),
+                document_id=document_id if isinstance(document_id, str) else None,
+                document_revision=arguments.get("documentRevision"),
+                name=arguments.get("name"),
+                store=projections,
+                asset_id=asset_id,
+            )
+        if isinstance(document_id, str) and document_id:
+            allowed = {
+                "documentId",
+                "view",
+                "hiddenLines",
+                "name",
+                "documentRevision",
+                "assetId",
+            }
+            if not set(arguments) <= allowed:
+                raise VectorToolError(
+                    "vector_projection_publish with documentId accepts documentId, view, and optional "
+                    "hiddenLines, name, documentRevision, assetId",
+                )
+            view = arguments.get("view")
+            if not isinstance(view, str) or not view:
+                raise VectorToolError("view must be a non-empty string")
+            hidden = arguments.get("hiddenLines", True)
+            if not isinstance(hidden, bool):
+                raise VectorToolError("hiddenLines must be a boolean")
+            resolver = getattr(projections, "resolve_document_path", None)
+            if resolver is None:
+                raise VectorToolError(
+                    "vector_projection_publish with documentId requires a document path resolver",
+                )
+            return export_document_projection(
+                document_id,
+                view,
+                resolve_document_path=resolver,
+                hidden_lines=hidden,
                 document_revision=arguments.get("documentRevision"),
                 name=arguments.get("name"),
                 store=projections,
                 asset_id=asset_id,
             )
         raise VectorToolError(
-            "vector_projection_publish requires export={...} or file+view",
+            "vector_projection_publish requires export={...}, file+view, or documentId+view",
         )
     except VectorProjectionInvalid as error:
         raise VectorToolError(str(error)) from error

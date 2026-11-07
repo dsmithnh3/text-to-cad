@@ -34,3 +34,8 @@ export function exportChoices({ file, planar }: Pick<ExportView, 'file' | 'plana
   if (/\.3mf$/i.test(file)) return [STL, GLB];
   return [];
 }
+
+/** Whether the on-screen file can publish a CAD-accurate OCCT HLR projection. */
+export function canPublishCadProjection(file: string): boolean {
+  return isDocumentId(file) || /\.(?:step|stp|xbf)$/i.test(file);
+}

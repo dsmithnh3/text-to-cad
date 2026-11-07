@@ -195,6 +195,11 @@ export default function App({ client, server, tabStore, notice = null, language:
     setWorkspace(next);
     try { sessionStorage.setItem('cad-unified-workspace', next); } catch { /* transient tab */ }
   };
+  useEffect(() => {
+    const onPublished = () => switchWorkspace('vector');
+    window.addEventListener('cad-vector-projection-published', onPublished);
+    return () => window.removeEventListener('cad-vector-projection-published', onPublished);
+  }, []);
   const trWorkspace = translator(locale);
   const cadUnavailable = workspace === 'cad' && engineGone && !restarting;
   return <div className="relative flex h-svh flex-col overflow-hidden">{cadUnavailable ? <EngineStopped locale={locale} refused={refused} /> : null}

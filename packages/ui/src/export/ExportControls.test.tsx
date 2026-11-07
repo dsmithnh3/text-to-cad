@@ -93,7 +93,15 @@ it('the menu is the formats the file\'s kind writes and nothing else, there at o
     const { service } = server();
     const { unmount } = mount(service, { save: vi.fn() }, { view: { ...part, file, name: file.split('/').pop()!, ...(planar ? { planar } : {}) } });
     const user = userEvent.setup({ skipHover: true });
-    await openExport(user);
+    await user.click(screen.getByRole('button', { name: 'File actions' }));
+    // STEP/XBF/document ids also offer Publish CAD projection beside Export.
+    const offersProjection = /\.(?:step|stp|xbf)$/i.test(file) || /^[0-9a-f-]{36}$/i.test(file);
+    if (offersProjection) {
+      expect(screen.getByRole('menuitem', { name: 'Publish CAD projection' })).toBeTruthy();
+    } else {
+      expect(screen.queryByRole('menuitem', { name: 'Publish CAD projection' })).toBeNull();
+    }
+    await user.click(screen.getByRole('menuitem', { name: 'Export' }));
     const items = within(menu()!).getAllByRole('menuitem');
     expect(items.map(item => item.textContent), shownFile).toEqual(labels);
     // Plain items alone: no checks, no icons, no heading, no button, no select, no rule, no note.
