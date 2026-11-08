@@ -15,7 +15,7 @@ Generate CAD normally through text-to-cad (do not bypass its existing engine, mo
    - **Viewer:** File ⋯ → **Publish CAD projection** → Isometric / Front / Top / Right (publishes OCCT HLR, switches to Vector Studio, and lists the asset in Library).
    - **MCP / HTTP:** `vector_projection_publish` with `file`+`view` or held `documentId`+`view`, or `POST /api/v1/vector/projections`.
 4. To rebuild after the source changes, call `vector_projection_regenerate` with `revisionId` and matching `expectedRevision`. Regeneration uses `source.path` when present; document-id-only provenance regenerates when the engine still holds that document (path resolved from the held document).
-5. Place the published SVG from Vector Studio Library (or via `vector_project_*`). For **dimensioned production drawings or cut DXF**, hand off to the engineering-drawing / DXF skills on the CAD model — projected SVG is composition, not a manufacturing drawing.
+5. Place the published SVG from Vector Studio Library (or via `vector_project_*`). For **dimensioned production drawings or cut DXF**, use Viewer **Shop drawing / DXF** or Vector Workflow handoff buttons (copies a prompt naming `$engineering-drawing` / `$dxf` and the CAD source). Projected SVG is composition, not a manufacturing drawing.
 
 ## Illustrative fallback (browser only)
 Switch the Viewer to Vector Studio and choose **Import GLB**. This browser action creates a local editable polygon asset from mesh triangles. Current MCP tools do **not** perform Import GLB. The result is an **illustration adapter**, not an exact CAD hidden-line drawing; hidden-face sorting, mesh topology, edge visibility, source part identity and units require review. Never claim it is CAD-accurate geometry.

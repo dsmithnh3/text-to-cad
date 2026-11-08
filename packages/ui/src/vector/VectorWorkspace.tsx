@@ -8,6 +8,7 @@ import { isolateSvg, sanitizeSvg } from './svgSafety.js';
 import {
   getCatalogRevision,
   listCatalogRevisions,
+  publishCatalogComponent,
   type VectorCatalogEntry,
   type VectorCatalogTransport,
 } from './vectorCatalog.js';
@@ -16,6 +17,11 @@ import {
   type VectorProjectionEntry,
   type VectorProjectionTransport,
 } from './vectorProjections.js';
+import {
+  canShopHandoff,
+  type ShopHandoffKind,
+  type ShopHandoffRequest,
+} from './shopHandoff.js';
 import { persistCommittedDraft, readVectorDraft, type VectorDraftStorage } from './vectorDraft.js';
 import {
   parseVectorProject,
@@ -94,6 +100,11 @@ export type VectorWorkspaceProps = {
   download?: (name: string, data: Blob) => void;
   /** Notified when the durable document id/revision changes. */
   onDocumentChange?: (document: VectorWorkspaceDocument | null) => void;
+  /**
+   * Host-delivered shop handoff (engineering-drawing / DXF). Shared UI never
+   * discovers clipboard or agent composers — the host copies or queues the prompt.
+   */
+  onShopHandoff?: ((request: ShopHandoffRequest) => Promise<void> | void) | null;
 };
 
 export default function VectorWorkspace({
@@ -106,6 +117,7 @@ export default function VectorWorkspace({
   documentId = null,
   download = defaultDownload,
   onDocumentChange,
+  onShopHandoff = null,
 }: VectorWorkspaceProps) {
   const tr = translator(locale);
   const storage = useMemo(() => resolveDraftStorage(draftStorage), [draftStorage]);
@@ -514,6 +526,58 @@ export default function VectorWorkspace({
     commit((p) => ({ ...p, items: p.items.filter((i) => i.id !== selected) }));
     setSelected('');
   };
+  const selectedAsset = selectedItem ? assetMap.get(selectedItem.assetId) : undefined;
+  const selectedProjection = selectedItem
+    ? projectionEntries.find((entry) => entry.revisionId === selectedItem.assetId || entry.asset.id === selectedItem.assetId)
+    : undefined;
+  const shopSource = {
+    path: selectedProjection?.projection?.source?.path,
+    documentId: selectedProjection?.projection?.source?.documentId,
+    documentRevision: selectedProjection?.projection?.source?.documentRevision,
+    projectionRevisionId: selectedProjection?.revisionId,
+    name: selectedProjection?.asset.name || selectedAsset?.name,
+  };
+  const runShopHandoff = async (kind: ShopHandoffKind) => {
+    if (!onShopHandoff) {
+      setMessage(tr('vector.handoffUnavailable'));
+      return;
+    }
+    const request: ShopHandoffRequest = { kind, ...shopSource };
+    if (!canShopHandoff(request)) {
+      setMessage(tr('vector.handoffNeedCadSource'));
+      return;
+    }
+    try {
+      await onShopHandoff(request);
+      setMessage(tr(kind === 'dxf' ? 'vector.handoffDxfCopied' : 'vector.handoffDrawingCopied'));
+    } catch (error) {
+      setMessage(String(error));
+    }
+  };
+  const publishSelectedToCatalog = async () => {
+    if (!catalog || !selectedAsset) {
+      setMessage(tr('vector.catalogUnavailable'));
+      return;
+    }
+    if (selectedAsset.provenance !== 'user-import' && selectedAsset.provenance !== 'source-derived') {
+      setMessage(tr('vector.catalogInvalidProvenance'));
+      return;
+    }
+    try {
+      const entry = await publishCatalogComponent(catalog, {
+        name: selectedAsset.name,
+        category: selectedAsset.category || 'Published',
+        svg: selectedAsset.svg,
+        provenance: selectedAsset.provenance,
+      });
+      setCatalogEntries((current) => (
+        current.some((e) => e.revisionId === entry.revisionId) ? current : [...current, entry]
+      ));
+      setMessage(tr('vector.catalogPublished', { name: entry.component.name }));
+    } catch (error) {
+      setMessage(String(error));
+    }
+  };
   const ButtonSmall = (props: ComponentProps<typeof Button>) => <Button variant="ghost" size="icon-sm" {...props} />;
   const revisionLabel = durable ? ` · rev ${durable.revision}` : '';
   return <div className="vs-root bg-background text-foreground">
@@ -538,8 +602,19 @@ export default function VectorWorkspace({
         {tab === 'assets' ? <><div className="vs-search"><Search className="size-4 text-muted-foreground"/><input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={tr('vector.search')} aria-label={tr('vector.search')}/></div>
           <label className="vs-import"><Upload className="size-4"/> {tr('vector.importSvg')} <input type="file" hidden multiple accept=".svg" onChange={(e) => void editFile(e.target.files)}/></label>
           <label className="vs-import"><Box className="size-4"/> {tr('vector.importGlb')} <input type="file" hidden accept=".glb,model/gltf-binary" onChange={(e) => void importGlb(e.target.files?.[0])}/></label>
-          <div className="vs-catalog">{assets.map((a) => <button key={a.id} type="button" onClick={() => void insert(a)} className="vs-asset" title={tr('vector.add') + ' ' + a.name}>
-            <span className="vs-asset-icon"><Box className="size-5"/></span><span className="min-w-0"><strong>{a.name}</strong><small>{a.category} · {a.provenance === 'source-derived' ? tr('vector.extracted') : tr('vector.local')}</small></span><Plus className="size-3.5 text-muted-foreground"/></button>)}
+          <div className="vs-catalog">{assets.map((a) => {
+            const isProjection = projectionAssets.some((p) => p.id === a.id);
+            const isCatalog = catalogAssets.some((c) => c.id === a.id);
+            const kindLabel = isProjection
+              ? tr('vector.cadProjection')
+              : isCatalog
+                ? tr('vector.catalogRevision')
+                : a.category.includes('illustrative')
+                  ? tr('vector.illustrativeMesh')
+                  : (a.provenance === 'source-derived' ? tr('vector.extracted') : tr('vector.local'));
+            return <button key={a.id} type="button" onClick={() => void insert(a)} className="vs-asset" title={tr('vector.add') + ' ' + a.name}>
+            <span className="vs-asset-icon"><Box className="size-5"/></span><span className="min-w-0"><strong>{a.name}</strong><small>{a.category} · {kindLabel}</small></span><Plus className="size-3.5 text-muted-foreground"/></button>;
+          })}
             {assets.length === 0 ? <p className="vs-muted">{tr('vector.noAssets')}</p> : null}</div>
         </> : <div className="vs-catalog">{[...project.items].reverse().map((item) => <div key={item.id} className={'vs-layer ' + (selected === item.id ? 'vs-selected' : '')} onClick={() => setSelected(item.id)}>
           <span className="truncate flex-1">{item.name}</span>
@@ -599,9 +674,19 @@ export default function VectorWorkspace({
           </div>
           <div className="vs-properties-actions"><Button size="sm" variant="outline" onClick={() => { const idx = project.items.findIndex((i) => i.id === selected); if (idx < project.items.length - 1) commit((p) => ({ ...p, items: [...p.items.slice(0, idx), ...p.items.slice(idx + 1, idx + 2), p.items[idx], ...p.items.slice(idx + 2)] })); }}><ChevronUp/> {tr('vector.forward')}</Button>
           <Button size="sm" variant="outline" onClick={() => { const idx = project.items.findIndex((i) => i.id === selected); if (idx > 0) commit((p) => { const a = [...p.items]; [a[idx - 1], a[idx]] = [a[idx], a[idx - 1]]; return { ...p, items: a }; }); }}><ChevronDown/> {tr('vector.backward')}</Button></div>
+          {catalog ? <Button size="sm" variant="outline" className="mt-2 w-full" onClick={() => void publishSelectedToCatalog()}>{tr('vector.publishToCatalog')}</Button> : null}
           <p className="vs-muted">{tr('vector.vectorNote')}</p>
         </div> : <div className="vs-properties"><p className="vs-muted">{tr('vector.emptySelect')}</p></div>}
-        <div className="vs-inspector-title border-t border-border">{tr('vector.workflow')}</div><div className="vs-properties"><p className="vs-muted">{tr('vector.cadIndependent')}</p><p className="vs-muted">{tr('vector.projectNote')}</p><p className="vs-muted">{tr('vector.drawingHandoff')}</p></div>
+        <div className="vs-inspector-title border-t border-border">{tr('vector.workflow')}</div><div className="vs-properties">
+          <p className="vs-muted">{tr('vector.cadIndependent')}</p>
+          <p className="vs-muted">{tr('vector.projectNote')}</p>
+          <p className="vs-muted">{tr('vector.drawingHandoff')}</p>
+          <div className="flex flex-col gap-1 mt-2">
+            <Button size="sm" variant="outline" disabled={!onShopHandoff || !canShopHandoff(shopSource)} onClick={() => void runShopHandoff('engineering-drawing')}>{tr('vector.handoffDrawing')}</Button>
+            <Button size="sm" variant="outline" disabled={!onShopHandoff || !canShopHandoff(shopSource)} onClick={() => void runShopHandoff('dxf')}>{tr('vector.handoffDxf')}</Button>
+          </div>
+          {!selectedProjection ? <p className="vs-muted mt-1">{tr('vector.handoffSelectProjection')}</p> : null}
+        </div>
       </aside>
     </div>
   </div>;

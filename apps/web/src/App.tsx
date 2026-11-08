@@ -8,6 +8,8 @@ import type { ModelLibrarySource } from '@cad/ui/library';
 import { createLiveRegistry, type ViewerHost } from '@cad/ui/host';
 import type { TabStore, Appearance } from '@cad/ui/tab-store';
 import { createHttpPromptFiles, isEngineRefused, type CadClient, type CadServerInfo } from '@cad/core/client';
+import { createPromptContext, textPart } from '@cad/core/prompt';
+import { formatShopHandoffPrompt, type ShopHandoffRequest } from '@cad/ui/vector';
 import { useViewerAutoReload } from './host/useViewerAutoReload.js';
 import { useEngineReconnect } from './host/useEngineReconnect.js';
 import { useUpdateRestart } from './host/useUpdateRestart.js';
@@ -200,6 +202,22 @@ export default function App({ client, server, tabStore, notice = null, language:
     window.addEventListener('cad-vector-projection-published', onPublished);
     return () => window.removeEventListener('cad-vector-projection-published', onPublished);
   }, []);
+  const deliverShopHandoff = useCallback(async (request: ShopHandoffRequest) => {
+    const text = formatShopHandoffPrompt(request);
+    const result = await promptContext.deliver(createPromptContext([textPart(text)]));
+    if (result.status === 'failed') {
+      throw new Error(result.message || 'Could not copy shop handoff prompt');
+    }
+  }, [promptContext]);
+  useEffect(() => {
+    const onShop = (event: Event) => {
+      const detail = (event as CustomEvent<ShopHandoffRequest>).detail;
+      if (!detail?.kind) return;
+      void deliverShopHandoff(detail).catch(() => { /* toast already shown from ExportControls */ });
+    };
+    window.addEventListener('cad-shop-handoff', onShop);
+    return () => window.removeEventListener('cad-shop-handoff', onShop);
+  }, [deliverShopHandoff]);
   const trWorkspace = translator(locale);
   const cadUnavailable = workspace === 'cad' && engineGone && !restarting;
   return <div className="relative flex h-svh flex-col overflow-hidden">{cadUnavailable ? <EngineStopped locale={locale} refused={refused} /> : null}
@@ -217,6 +235,6 @@ export default function App({ client, server, tabStore, notice = null, language:
       update={updater.notice || updater.phase.phase !== 'idle' ? <UpdateButton notice={updater.notice} phase={updater.phase} onUpdate={updater.update} /> : null}
       colorScheme={colorScheme} language={language} />
       </div>
-      {workspace === 'vector' ? <div className="min-h-0 flex-1"><VectorWorkspace locale={locale} /></div> : null}
+      {workspace === 'vector' ? <div className="min-h-0 flex-1"><VectorWorkspace locale={locale} onShopHandoff={deliverShopHandoff} /></div> : null}
   </div></div>;
 }

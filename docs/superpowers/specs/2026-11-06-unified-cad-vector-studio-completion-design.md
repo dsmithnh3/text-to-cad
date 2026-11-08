@@ -23,6 +23,7 @@ the existing CAD-only workflow.
 ## Non-goals
 
 - Parametric CAD↔vector round-trip and certified equipment/piping sizing (research-scale).
+  Investigation (deferred, no implementation): `docs/superpowers/specs/2026-11-07-parametric-cad-vector-round-trip-investigation.md`.
 - Replacing `CadViewer`, the CAD engine, registry, exports, or plugin host.
 - Advertising Vector MCP tools before `tools/list` and mutation tests prove them.
 - Automatic watch-and-reinstall of the Codex development plugin (snapshots only).

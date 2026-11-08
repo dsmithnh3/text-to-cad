@@ -7,6 +7,7 @@ import {
   createBrowserVectorCatalogTransport,
   createBrowserVectorProjectTransport,
   createBrowserVectorProjectionTransport,
+  type ShopHandoffRequest,
   type VectorAsset,
 } from '@cad/ui/vector';
 import { useMemo } from 'react';
@@ -31,7 +32,13 @@ function sessionDraftStorage() {
   }
 }
 
-export default function VectorWorkspace({ locale }: { locale: string }) {
+export default function VectorWorkspace({
+  locale,
+  onShopHandoff = null,
+}: {
+  locale: string;
+  onShopHandoff?: ((request: ShopHandoffRequest) => Promise<void> | void) | null;
+}) {
   const projectStore = useMemo(() => createBrowserVectorProjectTransport(), []);
   const catalog = useMemo(() => createBrowserVectorCatalogTransport(), []);
   const projections = useMemo(() => createBrowserVectorProjectionTransport(), []);
@@ -44,6 +51,7 @@ export default function VectorWorkspace({ locale }: { locale: string }) {
       catalog={catalog}
       projections={projections}
       draftStorage={draftStorage}
+      onShopHandoff={onShopHandoff}
     />
   );
 }

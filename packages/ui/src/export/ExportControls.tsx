@@ -227,7 +227,32 @@ export function ExportControls({ service, downloads, file, children }: {
       ))}
     </DropdownMenuSubContent>
   </DropdownMenuSub> : null;
-  const menu = exportMenu || projectionMenu ? <>{exportMenu}{projectionMenu}</> : null;
+  const shopHandoff = (kind: 'engineering-drawing' | 'dxf') => {
+    if (!displayed) return;
+    usage.used(`shop_handoff_${kind}`);
+    const detail = {
+      kind,
+      path: !isDocumentId(displayed.file) ? displayed.file : undefined,
+      documentId: displayed.doc || (isDocumentId(displayed.file) ? displayed.file : undefined),
+      documentRevision: displayed.revision || undefined,
+      name: displayed.name,
+    };
+    try {
+      window.dispatchEvent(new CustomEvent('cad-shop-handoff', { detail }));
+      toast.success(t(kind === 'dxf' ? 'export.shop.dxfCopied' : 'export.shop.drawingCopied'), { duration: 5000 });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t('export.shop.failed'), { duration: Infinity, closeButton: true });
+    }
+  };
+  const shopLabel = t('export.shop.button');
+  const shopMenu = enabled && showProjection ? <DropdownMenuSub>
+    <DropdownMenuSubTrigger data-shop-menu="">{shopLabel}</DropdownMenuSubTrigger>
+    <DropdownMenuSubContent aria-label={shopLabel}>
+      <DropdownMenuItem onSelect={() => shopHandoff('engineering-drawing')} data-shop-kind="engineering-drawing">{t('export.shop.drawing')}</DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => shopHandoff('dxf')} data-shop-kind="dxf">{t('export.shop.dxf')}</DropdownMenuItem>
+    </DropdownMenuSubContent>
+  </DropdownMenuSub> : null;
+  const menu = exportMenu || projectionMenu || shopMenu ? <>{exportMenu}{projectionMenu}{shopMenu}</> : null;
   const overlay = enabled ? <ExportToaster /> : null;
   return <ExportContext.Provider value={enabled ? setSource : null}>{children({ menu, overlay })}</ExportContext.Provider>;
 }

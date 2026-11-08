@@ -49,4 +49,11 @@ node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 22 ? 0 : 1)
 
 npm ci
 npm run build:packages
+
+# Optional private-fork Vector Studio library (third-party SVG; never for public upstream).
+library_zip=".cursor/vector-library/supacad-equipment-svg-library.zip"
+if [ -f "${library_zip}" ]; then
+  ./.venv/bin/python scripts/vector/import_svg_library.py "${library_zip}"
+fi
+
 npm run build -w @cad/web

@@ -26,16 +26,22 @@ Use the **Vector Studio** tab (CAD Viewer) or the MCP `VectorView` (CAD app / em
    Provenance-backed regeneration uses `vector_projection_regenerate` when `expectedRevision` matches the lineage tip; `source.path` is preferred, and document-id-only provenance regenerates while the engine still holds that document.
 3. Optionally use **Import GLB** in the browser for an **illustrative** mesh polygon asset. Do **not** treat mesh-projected SVG as a precision manufacturing drawing.
 4. Compose and export editable SVG in Vector Studio (Library lists catalog revisions and published CAD projections).
-5. Use CAD's engineering-drawing and DXF skills, not Vector Studio, when dimensioned production output is required.
+5. For dimensioned production output, use **Shop drawing / DXF** (CAD File ⋯) or Vector Studio Workflow **Copy engineering-drawing / DXF skill prompt** — these seed the agent with the CAD model path/id. Do not treat projected SVG as a manufacturing drawing.
 
 ## Local source-derived library (not public repo)
-The SupaCAD-derived extracted artwork is third-party material with separate rights. This branch contains no such graphics. To import an archive the user already possesses:
+The SupaCAD-derived extracted artwork is third-party material with separate rights. Public upstream trees contain no such graphics. To import an archive you already possess:
 
 ```bash
 python3 scripts/vector/import_svg_library.py "/path/to/SupaCAD_Modular_SVG_Components_Library.zip"
 npm ci
 npm run build:web
 ```
+
+On a **private** checkout only, the curated equipment ZIP may live at
+`.cursor/vector-library/supacad-equipment-svg-library.zip`. Cursor Cloud
+Agent bootstrap (`.cursor/install.sh`) imports it before the Viewer build
+so Library assets are available in cloud UI sessions. Never include that
+ZIP (or extracted SVGs) in pull requests to public `earthtojake/text-to-cad`.
 
 The importer writes the SVG files into `apps/web/src/vector/assets/`, intentionally Git-ignored. Vite's native `import.meta.glob` compiles them into the vector workspace. The importer inspects the ZIP central directory and streams only selected members under archive budgets (`MAX_FILES = 2000`, `MAX_FILE = 2_000_000`, `MAX_TOTAL = 80_000_000`). If you are adding many large assets, rebuild time and bundle size will increase; consider asset-server streaming and search indexing in a future iteration.
 
@@ -61,7 +67,9 @@ The importer writes the SVG files into `apps/web/src/vector/assets/`, intentiona
 | Project / archive aggregate budgets | Implemented (exact limits below) |
 | Experimental GLB→SVG | Native browser import; illustrative mesh projection (labeled) |
 | CAD-accurate projection + regeneration | Orthographic + isometric OCCT HLR; immutable asset revisions; `vector_projection_*` |
-| Shared assembly graph / parametric round-trip | Not implemented |
+| Shared assembly graph / parametric round-trip | Not implemented (investigation: `docs/superpowers/specs/2026-11-07-parametric-cad-vector-round-trip-investigation.md`) |
+| Shop drawing / DXF handoff prompts | Implemented (Viewer File ⋯ + Vector Workflow; agent skills remain the producers) |
+| Publish Library asset to catalog | Implemented (Properties → Publish to catalog) |
 | Server-side vector project database | Durable UUID/revision store (`/api/v1/vector/projects`); client drafts remain overlay |
 | Immutable component catalog | Publish-once revisions under `/api/v1/vector/catalog`; MCP/UI consume by revision id |
 | Per-instance raw SVG source editing | Implemented |

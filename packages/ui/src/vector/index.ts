@@ -90,6 +90,16 @@ export type {
   VectorProjectionTransport,
 } from './vectorProjections.js';
 
+export {
+  canShopHandoff,
+  formatShopHandoffPrompt,
+} from './shopHandoff.js';
+export type {
+  ShopHandoffKind,
+  ShopHandoffRequest,
+  ShopHandoffSource,
+} from './shopHandoff.js';
+
 export { isolateSvg, sanitizeSvg } from './svgSafety.js';
 export {
   EDITABLE_TAGS,
