@@ -29,13 +29,19 @@ Use the **Vector Studio** tab (CAD Viewer) or the MCP `VectorView` (CAD app / em
 5. For dimensioned production output, use **Shop drawing / DXF** (CAD File ⋯) or Vector Studio Workflow **Copy engineering-drawing / DXF skill prompt** — these seed the agent with the CAD model path/id. Do not treat projected SVG as a manufacturing drawing.
 
 ## Local source-derived library (not public repo)
-The SupaCAD-derived extracted artwork is third-party material with separate rights. This branch contains no such graphics. To import an archive the user already possesses:
+The SupaCAD-derived extracted artwork is third-party material with separate rights. Public upstream trees contain no such graphics. To import an archive you already possess:
 
 ```bash
 python3 scripts/vector/import_svg_library.py "/path/to/SupaCAD_Modular_SVG_Components_Library.zip"
 npm ci
 npm run build:web
 ```
+
+On a **private** checkout only, the curated equipment ZIP may live at
+`.cursor/vector-library/supacad-equipment-svg-library.zip`. Cursor Cloud
+Agent bootstrap (`.cursor/install.sh`) imports it before the Viewer build
+so Library assets are available in cloud UI sessions. Never include that
+ZIP (or extracted SVGs) in pull requests to public `earthtojake/text-to-cad`.
 
 The importer writes the SVG files into `apps/web/src/vector/assets/`, intentionally Git-ignored. Vite's native `import.meta.glob` compiles them into the vector workspace. The importer inspects the ZIP central directory and streams only selected members under archive budgets (`MAX_FILES = 2000`, `MAX_FILE = 2_000_000`, `MAX_TOTAL = 80_000_000`). If you are adding many large assets, rebuild time and bundle size will increase; consider asset-server streaming and search indexing in a future iteration.
 
