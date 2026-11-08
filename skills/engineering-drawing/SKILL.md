@@ -22,6 +22,8 @@ there is no CLI: the script is the interface. Cut layouts and flat patterns are
 toolpaths, not documents, and a different job. Vector Studio CAD projections
 (isometric / orthographic SVG) are composition assets, not a substitute for
 this sheet — hand off here when the user needs dimensioned shop drawings.
+Viewer **Shop drawing / DXF** and Vector Workflow **Copy engineering-drawing prompt**
+seed an agent with the CAD path/document id; they do not generate the PDF themselves.
 
 ## Setup
 

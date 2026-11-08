@@ -36,7 +36,9 @@ that returns planar geometry.
 **A drawing is a model.** It builds as any text-to-cad model does: `cad run <name>.py`
 rebuilds it in the server, prints its document's `id:` and page, and writes nothing.
 The DXF is exported from that document, by build123d's own exporter, once the drawing
-checks pass: `cad export <id> drawing.dxf`. A drawing that calls a part model
+checks pass: `cad export <id> drawing.dxf`. Vector Studio projected SVG is not a DXF —
+Viewer **Shop drawing / DXF** / Vector Workflow **Copy DXF skill prompt** only seed the
+agent with the CAD source. A drawing that calls a part model
 (`bracket()` in its body) builds that part in the same run. The CAD Viewer and
 `cad snapshot` read the `.dxf` itself, so the file you hand a cutting service,
 the file the viewer draws and the file a snapshot renders are one and the same.
